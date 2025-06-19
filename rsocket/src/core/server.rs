@@ -100,7 +100,7 @@ where
     }
 
     #[inline]
-    async fn on_transport(mtu: usize, tp: C, acceptor: Arc<Option<ServerResponder>>) -> Result<()> {
+    pub(crate) async fn on_transport(mtu: usize, tp: C, acceptor: Arc<Option<ServerResponder>>) -> Result<()> {
         // Establish connection.
         let conn = tp.connect().await?;
         let (mut writer, mut reader) = conn.split();

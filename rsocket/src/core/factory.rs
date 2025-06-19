@@ -1,4 +1,4 @@
-use super::{Client, ClientBuilder, ServerBuilder};
+use super::{Client, ClientBuilder, ServerBuilder, MultiTransportServerBuilder};
 use crate::transport::{Connection, ServerTransport, Transport};
 
 #[derive(Debug)]
@@ -19,5 +19,9 @@ impl RSocketFactory {
         T: Send + Sync + Transport,
     {
         ServerBuilder::new()
+    }
+
+    pub fn receive_multi_transport() -> MultiTransportServerBuilder {
+        MultiTransportServerBuilder::new()
     }
 }

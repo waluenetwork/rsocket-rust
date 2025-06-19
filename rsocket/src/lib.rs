@@ -130,4 +130,4 @@ mod spi;
 pub type Error = Box<dyn std::error::Error + Sync + Send>;
 pub type Result<T> = anyhow::Result<T>;
 
-pub use crate::core::{Client, ClientBuilder, ServerBuilder};
+pub use crate::core::{Client, ClientBuilder, ServerBuilder, MultiTransportServerBuilder};

@@ -1,6 +1,6 @@
 use rsocket_rust::prelude::*;
 use rsocket_rust::utils::EchoRSocket;
-use rsocket_rust_transport_iroh::P2PServerTransport;
+use rsocket_rust_transport_iroh::IrohServerTransport;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,18 +10,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("🚀 Starting Iroh P2P Echo Server...");
     
-    let server_transport = P2PServerTransport::default();
+    let mut server_transport = IrohServerTransport::default();
+    server_transport.start().await?;
     
     let server_socket = RSocketFactory::receive()
         .transport(server_transport)
         .acceptor(Box::new(|setup, _socket| {
-            println!("✅ Server: Setup received from peer: {:?}", setup);
+            println!("✅ Setup received from Iroh P2P peer: {:?}", setup);
             Ok(Box::new(EchoRSocket))
         }))
         .serve();
     
-    println!("🌐 Server ready for P2P connections!");
-    println!("📋 Use this server's NodeId to connect from clients");
+    println!("✅ Iroh P2P server started!");
+    println!("📡 Server listening for Iroh P2P connections...");
+    println!("🔗 Use the server's NodeId to connect from clients");
     
     if let Err(e) = server_socket.await {
         eprintln!("❌ Server error: {:?}", e);

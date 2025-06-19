@@ -1,3 +1,3 @@
 mod iroh;
 
-pub use iroh::P2PClientTransport;
+pub use iroh::IrohClientTransport;

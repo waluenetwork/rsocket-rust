@@ -1,108 +1,159 @@
-use quinn::Endpoint;
+use iroh::protocol::{ProtocolHandler, Router};
 use rsocket_rust::async_trait;
-use rsocket_rust::{error::RSocketError, transport::ServerTransport};
+use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
+use futures::channel::mpsc;
+use futures::future::BoxFuture;
+use futures::StreamExt;
+use anyhow;
 
-use crate::{client::P2PClientTransport, connection::P2PConnection, misc::{create_p2p_endpoint, P2PConfig}};
+use crate::{client::IrohClientTransport, connection::IrohConnectionWithStreams, misc::{create_iroh_endpoint, IrohConfig, RSOCKET_ALPN}};
 
 #[derive(Debug)]
-pub struct P2PServerTransport {
-    config: P2PConfig,
-    endpoint: Option<Endpoint>,
+pub struct IrohServerTransport {
+    config: IrohConfig,
+    router: Option<Router>,
+    connection_receiver: Option<mpsc::UnboundedReceiver<iroh::endpoint::Connection>>,
 }
 
-impl P2PServerTransport {
-    fn new(config: P2PConfig) -> P2PServerTransport {
-        P2PServerTransport {
+impl IrohServerTransport {
+    fn new(config: IrohConfig) -> IrohServerTransport {
+        IrohServerTransport {
             config,
-            endpoint: None,
+            router: None,
+            connection_receiver: None,
         }
+    }
+    
+    pub fn node_id(&self) -> Option<String> {
+        self.router.as_ref().map(|router| router.endpoint().node_id().to_string())
+    }
+    
+    pub async fn node_addr(&self) -> Option<iroh::NodeAddr> {
+        if let Some(router) = &self.router {
+            let endpoint = router.endpoint();
+            
+            log::info!("Waiting for endpoint to discover direct addresses...");
+            match endpoint.direct_addresses().initialized().await {
+                Ok(direct_addrs) => {
+                    log::info!("Direct addresses discovered: {:?}", direct_addrs);
+                }
+                Err(e) => {
+                    log::warn!("Failed to get direct addresses: {:?}", e);
+                }
+            }
+            
+            log::info!("Waiting for home relay connection...");
+            match endpoint.home_relay().initialized().await {
+                Ok(relay_url) => {
+                    log::info!("Home relay established: {:?}", relay_url);
+                }
+                Err(e) => {
+                    log::warn!("Failed to establish home relay: {:?}", e);
+                }
+            }
+            
+            match endpoint.node_addr().await {
+                Ok(node_addr) => {
+                    log::info!("NodeAddr created with relay: {:?}, direct_addresses: {:?}", 
+                              node_addr.relay_url, node_addr.direct_addresses);
+                    Some(node_addr)
+                },
+                Err(e) => {
+                    log::error!("Failed to get node address: {:?}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct RSocketProtocolHandler {
+    connection_sender: mpsc::UnboundedSender<iroh::endpoint::Connection>,
+}
+
+impl ProtocolHandler for RSocketProtocolHandler {
+    fn accept(&self, connection: iroh::endpoint::Connection) -> BoxFuture<'static, anyhow::Result<()>> {
+        let sender = self.connection_sender.clone();
+        Box::pin(async move {
+            sender.unbounded_send(connection).map_err(|e| anyhow::anyhow!("Failed to send connection: {}", e))?;
+            Ok(())
+        })
     }
 }
 
 #[async_trait]
-impl ServerTransport for P2PServerTransport {
-    type Item = P2PClientTransport;
+impl ServerTransport for IrohServerTransport {
+    type Item = IrohClientTransport;
 
-    async fn start(&mut self) -> rsocket_rust::Result<()> {
-        if self.endpoint.is_some() {
+    async fn start(&mut self) -> Result<()> {
+        if self.router.is_some() {
             return Ok(());
         }
         
-        let endpoint = create_p2p_endpoint(&self.config).await
-            .map_err(|e| RSocketError::Other(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("P2P server endpoint creation failed: {}", e)
-            ).into()))?;
+        let endpoint = create_iroh_endpoint(&self.config).await
+            .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to create endpoint: {}", e).into()))?;
         
-        let local_addr = endpoint.local_addr()
-            .map_err(|e| RSocketError::Other(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to get local address: {}", e)
-            ).into()))?;
+        let (connection_sender, connection_receiver) = mpsc::unbounded();
+        let protocol_handler = RSocketProtocolHandler { connection_sender };
         
-        log::info!("P2P server started with PeerID: {}", self.config.peer_id);
-        log::info!("P2P server listening on: {}", local_addr);
+        let router = Router::builder(endpoint)
+            .accept(RSOCKET_ALPN, protocol_handler)
+            .spawn()
+            .await
+            .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to start router: {}", e).into()))?;
         
-        self.endpoint = Some(endpoint);
+        log::info!("Iroh P2P server started with NodeId: {}", router.endpoint().node_id());
+        log::info!("Server listening for P2P connections...");
+        
+        self.router = Some(router);
+        self.connection_receiver = Some(connection_receiver);
         Ok(())
     }
 
-    async fn next(&mut self) -> Option<rsocket_rust::Result<Self::Item>> {
-        match self.endpoint.as_mut() {
-            Some(endpoint) => {
-                match endpoint.accept().await {
-                    Some(connecting) => {
-                        match connecting.await {
-                            Ok(connection) => {
-                                match connection.accept_bi().await {
-                                    Ok((send_stream, recv_stream)) => {
-                                        let p2p_connection = P2PConnection::new(send_stream, recv_stream);
-                                        Some(Ok(P2PClientTransport::from_p2p_connection(p2p_connection)))
-                                    }
-                                    Err(e) => Some(Err(RSocketError::Other(std::io::Error::new(
-                                        std::io::ErrorKind::Other,
-                                        format!("P2P connection error: {}", e)
-                                    ).into()).into())),
-                                }
+    async fn next(&mut self) -> Option<Result<Self::Item>> {
+        match self.connection_receiver.as_mut() {
+            Some(receiver) => {
+                match receiver.next().await {
+                    Some(connection) => {
+                        log::info!("✅ Server: Received incoming Iroh P2P connection");
+                        log::info!("🔗 Opening bidirectional stream for incoming Iroh connection");
+                        match connection.open_bi().await {
+                            Ok((send_stream, recv_stream)) => {
+                                log::info!("✅ Bidirectional stream opened for incoming connection");
+                                let iroh_connection = IrohConnectionWithStreams::new(send_stream, recv_stream);
+                                Some(Ok(IrohClientTransport::from_connection_with_streams(iroh_connection)))
                             }
-                            Err(e) => Some(Err(RSocketError::Other(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                format!("P2P connection error: {}", e)
-                            ).into()).into())),
+                            Err(e) => {
+                                log::error!("❌ Failed to open bidirectional stream for incoming connection: {:?}", e);
+                                Some(Err(RSocketError::Other(e.into()).into()))
+                            }
                         }
                     }
-                    None => None,
+                    None => {
+                        log::warn!("❌ Server: Connection receiver closed");
+                        None
+                    }
                 }
             }
-            None => None,
+            None => {
+                log::warn!("❌ Server: No connection receiver available");
+                None
+            }
         }
     }
 }
 
-impl Default for P2PServerTransport {
+impl Default for IrohServerTransport {
     fn default() -> Self {
-        P2PServerTransport::new(P2PConfig::default())
+        IrohServerTransport::new(IrohConfig::default())
     }
 }
 
-impl From<P2PConfig> for P2PServerTransport {
-    fn from(config: P2PConfig) -> Self {
-        P2PServerTransport::new(config)
-    }
-}
-
-impl From<String> for P2PServerTransport {
-    fn from(addr: String) -> Self {
-        let mut config = P2PConfig::default();
-        config.listen_addr = addr.parse().expect("Invalid address format");
-        P2PServerTransport::new(config)
-    }
-}
-
-impl From<&str> for P2PServerTransport {
-    fn from(addr: &str) -> Self {
-        let mut config = P2PConfig::default();
-        config.listen_addr = addr.parse().expect("Invalid address format");
-        P2PServerTransport::new(config)
+impl From<IrohConfig> for IrohServerTransport {
+    fn from(config: IrohConfig) -> Self {
+        IrohServerTransport::new(config)
     }
 }

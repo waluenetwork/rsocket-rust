@@ -1,13 +1,13 @@
 [package]
 name = "rsocket_rust_transport_iroh"
-version = "0.7.4"
+version = "0.8.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2021"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/rsocket/rsocket-rust"
 homepage = "https://github.com/rsocket/rsocket-rust"
-description = "P2P RSocket transport implementation using Quinn QUIC."
+description = "Iroh P2P RSocket transport implementation using native Iroh protocol."
 
 [features]
 default = []
@@ -16,9 +16,7 @@ default = []
 log = "0.4.14"
 futures = "0.3.15"
 bytes = "1.0.1"
-quinn = "0.11"
-rustls = "0.23"
-rcgen = "0.12"
+iroh = "0.34"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
@@ -27,7 +25,7 @@ tokio-util = { version = "0.6.6", default-features = false, features = ["codec"]
 
 [dependencies.rsocket_rust]
 path = "../rsocket"
-version = "0.7"
+version = "0.8"
 features = ["frame"]
 
 [dev-dependencies]
@@ -44,3 +42,19 @@ path = "examples/iroh-echo-client.rs"
 [[example]]
 name = "all-patterns-p2p-test"
 path = "examples/all-patterns-p2p-test.rs"
+
+[[example]]
+name = "comprehensive-p2p-patterns-test"
+path = "examples/comprehensive-p2p-patterns-test.rs"
+
+[[example]]
+name = "test-all-patterns-real-iroh"
+path = "examples/test-all-patterns-real-iroh.rs"
+
+[[example]]
+name = "simple-iroh-connection-test"
+path = "examples/simple-iroh-connection-test.rs"
+
+[[example]]
+name = "iroh-p2p-demo"
+path = "examples/iroh-p2p-demo.rs"

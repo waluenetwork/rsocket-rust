@@ -1,90 +1,124 @@
 
-use rsocket_rust::async_trait;
-use rsocket_rust::{error::RSocketError, transport::Transport};
 
-use crate::{connection::P2PConnection, misc::{create_p2p_endpoint, parse_peer_address, P2PConfig}};
+use rsocket_rust::async_trait;
+use rsocket_rust::{error::RSocketError, transport::Transport, Result};
+
+use crate::{connection::{IrohConnection, IrohConnectionWithStreams}, misc::{create_iroh_endpoint, parse_node_addr, IrohConfig, RSOCKET_ALPN}};
 
 #[derive(Debug)]
 enum Connector {
-    Direct(P2PConnection),
-    Lazy(String, Option<P2PConfig>),
+    Direct(iroh::endpoint::Connection),
+    DirectWithStreams(IrohConnectionWithStreams),
+    Lazy(String),
+    NodeAddr(iroh::NodeAddr),
 }
 
 #[derive(Debug)]
-pub struct P2PClientTransport {
+pub struct IrohClientTransport {
     connector: Connector,
 }
 
 #[async_trait]
-impl Transport for P2PClientTransport {
-    type Conn = P2PConnection;
+impl Transport for IrohClientTransport {
+    type Conn = IrohConnectionWithStreams;
 
-    async fn connect(self) -> rsocket_rust::Result<P2PConnection> {
+    async fn connect(self) -> Result<IrohConnectionWithStreams> {
         match self.connector {
-            Connector::Direct(p2p_connection) => {
-                Ok(p2p_connection)
-            }
-            Connector::Lazy(addr, config) => {
-                let config = config.unwrap_or_default();
-                let endpoint = create_p2p_endpoint(&config).await
-                    .map_err(|e| RSocketError::Other(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("P2P endpoint creation failed: {}", e)
-                    ).into()))?;
-                
-                let (_peer_id, socket_addr) = parse_peer_address(&addr)?;
-                
-                let connection = endpoint.connect(socket_addr, "localhost")
-                    .map_err(|e| RSocketError::Other(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("P2P connection failed: {}", e)
-                    ).into()))?
+            Connector::Direct(connection) => {
+                log::info!("🔗 Opening bidirectional stream for direct Iroh connection");
+                let (send_stream, recv_stream) = connection.open_bi()
                     .await
-                    .map_err(|e| RSocketError::Other(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("P2P connection await failed: {}", e)
-                    ).into()))?;
+                    .map_err(|e| RSocketError::Other(e.into()))?;
                 
-                P2PConnection::from_quinn_connection(connection).await
+                log::info!("✅ Bidirectional stream opened successfully");
+                Ok(IrohConnectionWithStreams::new(send_stream, recv_stream))
+            }
+            Connector::DirectWithStreams(connection) => {
+                log::info!("✅ Using pre-opened Iroh connection with streams");
+                Ok(connection)
+            }
+            Connector::Lazy(addr) => {
+                let config = IrohConfig::default();
+                let endpoint = create_iroh_endpoint(&config).await
+                    .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to create endpoint: {}", e).into()))?;
+                
+                let node_addr = parse_node_addr(&addr)?;
+                
+                let connection = endpoint.connect(node_addr, RSOCKET_ALPN)
+                    .await
+                    .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to connect: {}", e).into()))?;
+                
+                log::info!("🔗 Opening bidirectional stream for RSocket communication");
+                let (send_stream, recv_stream) = connection.open_bi()
+                    .await
+                    .map_err(|e| RSocketError::Other(e.into()))?;
+                
+                log::info!("✅ Bidirectional stream opened successfully");
+                Ok(IrohConnectionWithStreams::new(send_stream, recv_stream))
+            }
+            Connector::NodeAddr(node_addr) => {
+                let config = IrohConfig::default();
+                let endpoint = create_iroh_endpoint(&config).await
+                    .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to create endpoint: {}", e).into()))?;
+                
+                log::info!("🔗 Connecting to NodeAddr with direct addressing: {:?}", node_addr);
+                
+                let connection = endpoint.connect(node_addr, RSOCKET_ALPN)
+                    .await
+                    .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to connect to NodeAddr: {}", e).into()))?;
+                
+                log::info!("🔗 Opening bidirectional stream for RSocket communication");
+                let (send_stream, recv_stream) = connection.open_bi()
+                    .await
+                    .map_err(|e| RSocketError::Other(e.into()))?;
+                
+                log::info!("✅ Bidirectional stream opened successfully");
+                Ok(IrohConnectionWithStreams::new(send_stream, recv_stream))
             }
         }
     }
 }
 
-impl From<String> for P2PClientTransport {
+impl From<String> for IrohClientTransport {
     fn from(addr: String) -> Self {
-        P2PClientTransport {
-            connector: Connector::Lazy(addr, None),
+        IrohClientTransport {
+            connector: Connector::Lazy(addr),
         }
     }
 }
 
-impl From<&str> for P2PClientTransport {
+impl From<&str> for IrohClientTransport {
     fn from(addr: &str) -> Self {
-        P2PClientTransport {
-            connector: Connector::Lazy(addr.to_string(), None),
+        IrohClientTransport {
+            connector: Connector::Lazy(addr.to_string()),
         }
     }
 }
 
-impl P2PClientTransport {
-    pub fn from_p2p_connection(p2p_connection: P2PConnection) -> Self {
-        P2PClientTransport {
-            connector: Connector::Direct(p2p_connection),
+impl IrohClientTransport {
+    pub fn from_connection(connection: iroh::endpoint::Connection) -> Self {
+        IrohClientTransport {
+            connector: Connector::Direct(connection),
         }
     }
     
-    pub fn with_config(addr: String, config: P2PConfig) -> Self {
-        P2PClientTransport {
-            connector: Connector::Lazy(addr, Some(config)),
+    pub fn from_node_addr(node_addr: iroh::NodeAddr) -> Self {
+        IrohClientTransport {
+            connector: Connector::NodeAddr(node_addr),
+        }
+    }
+
+    pub fn from_connection_with_streams(connection: IrohConnectionWithStreams) -> Self {
+        IrohClientTransport {
+            connector: Connector::DirectWithStreams(connection),
         }
     }
 }
 
-impl From<P2PConnection> for P2PClientTransport {
-    fn from(p2p_connection: P2PConnection) -> Self {
-        P2PClientTransport {
-            connector: Connector::Direct(p2p_connection),
+impl From<iroh::endpoint::Connection> for IrohClientTransport {
+    fn from(connection: iroh::endpoint::Connection) -> Self {
+        IrohClientTransport {
+            connector: Connector::Direct(connection),
         }
     }
 }

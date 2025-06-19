@@ -1,5 +1,5 @@
 use rsocket_rust::prelude::*;
-use rsocket_rust_transport_iroh::P2PClientTransport;
+use rsocket_rust_transport_iroh::IrohClientTransport;
 use std::env;
 
 #[tokio::main]
@@ -20,16 +20,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Starting Iroh P2P Echo Client...");
     println!("🎯 Connecting to server: {}", server_node_addr);
     
-    let client_transport = P2PClientTransport::from(server_node_addr.as_str());
+    let client_transport = IrohClientTransport::from(server_node_addr.as_str());
     let client = RSocketFactory::connect()
         .transport(client_transport)
         .start()
         .await?;
     
-    println!("✅ Connected to P2P server!");
+    println!("✅ Connected to Iroh P2P server!");
     
     let req = Payload::builder()
-        .set_data_utf8("Hello from Iroh P2P client!")
+        .set_data_utf8("Hello from real Iroh P2P client!")
         .build();
     
     match client.request_response(req).await? {

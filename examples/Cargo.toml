@@ -14,16 +14,16 @@ pprof = { version = "0.4.3", features = ["flamegraph"] }
 
 [dev-dependencies.rsocket_rust]
 path = "../rsocket"
-version = "0.7"
+version = "0.8"
 
 [dev-dependencies.rsocket_rust_transport_tcp]
 path = "../rsocket-transport-tcp"
-version = "0.7"
+version = "0.8"
 features = ["tls"]
 
 [dev-dependencies.rsocket_rust_transport_websocket]
 path = "../rsocket-transport-websocket"
-version = "0.7"
+version = "0.8"
 
 [dev-dependencies.rsocket_rust_transport_quinn]
 path = "../rsocket-transport-quinn"

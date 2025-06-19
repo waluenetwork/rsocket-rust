@@ -7,7 +7,7 @@ mod connection;
 mod misc;
 mod server;
 
-pub use client::P2PClientTransport;
-pub use connection::P2PConnection;
-pub use server::P2PServerTransport;
-pub use misc::{P2PConfig, PeerInfo};
+pub use client::IrohClientTransport;
+pub use connection::{IrohConnection, IrohConnectionWithStreams};
+pub use server::IrohServerTransport;
+pub use misc::IrohConfig;

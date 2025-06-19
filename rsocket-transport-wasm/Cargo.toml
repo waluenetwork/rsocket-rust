@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust_transport_wasm"
-version = "0.7.4"
+version = "0.8.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -21,7 +21,7 @@ log = "0.4.14"
 
 [dependencies.rsocket_rust]
 path = "../rsocket"
-version = "0.7"
+version = "0.8"
 features = ["frame"]
 
 [dependencies.wasm-bindgen]

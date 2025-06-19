@@ -1,3 +1,3 @@
 mod iroh;
 
-pub use iroh::P2PServerTransport;
+pub use iroh::IrohServerTransport;

@@ -5,6 +5,7 @@ members = [
   "rsocket-transport-tcp",
   "rsocket-transport-websocket",
   "rsocket-transport-wasm",
+  "rsocket-transport-quinn",
   "rsocket-messaging",
   "examples",
   "rsocket-test",

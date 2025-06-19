@@ -8,7 +8,7 @@ use crate::{connection::QuinnConnection, misc::create_client_config};
 
 #[derive(Debug)]
 enum Connector {
-    Direct(Endpoint, SocketAddr, String),
+    Direct(Connection),
     Lazy(String, Option<ClientConfig>),
 }
 
@@ -23,12 +23,7 @@ impl Transport for QuinnClientTransport {
 
     async fn connect(self) -> Result<QuinnConnection> {
         match self.connector {
-            Connector::Direct(endpoint, addr, server_name) => {
-                let connection = endpoint.connect(addr, &server_name)
-                    .map_err(|e| RSocketError::Other(e.into()))?
-                    .await
-                    .map_err(|e| RSocketError::Other(e.into()))?;
-                
+            Connector::Direct(connection) => {
                 let (send_stream, recv_stream) = connection.open_bi()
                     .await
                     .map_err(|e| RSocketError::Other(e.into()))?;
@@ -79,7 +74,15 @@ impl From<&str> for QuinnClientTransport {
 impl QuinnClientTransport {
     pub fn from_connection(connection: Connection) -> Self {
         QuinnClientTransport {
-            connector: Connector::Lazy("127.0.0.1:7878".to_string(), None),
+            connector: Connector::Direct(connection),
+        }
+    }
+}
+
+impl From<Connection> for QuinnClientTransport {
+    fn from(connection: Connection) -> Self {
+        QuinnClientTransport {
+            connector: Connector::Direct(connection),
         }
     }
 }

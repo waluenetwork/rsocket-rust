@@ -22,6 +22,9 @@ features = ["tls"]
 [dev-dependencies.rsocket_rust_transport_websocket]
 version = "0.7"
 
+[dev-dependencies.rsocket_rust_transport_quinn]
+path = "../rsocket-transport-quinn"
+
 [dev-dependencies.tokio]
 version = "1.0.3"
 default-features = false
@@ -50,3 +53,11 @@ path = "tls/server.rs"
 [[example]]
 name = "tls-client"
 path = "tls/client.rs"
+
+[[example]]
+name = "quinn-echo-server"
+path = "quinn-echo-server.rs"
+
+[[example]]
+name = "quinn-echo-client"
+path = "quinn-echo-client.rs"

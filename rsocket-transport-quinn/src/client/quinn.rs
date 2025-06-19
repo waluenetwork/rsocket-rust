@@ -77,9 +77,9 @@ impl From<&str> for QuinnClientTransport {
 }
 
 impl QuinnClientTransport {
-    pub fn from_connection(_connection: Connection) -> Self {
+    pub fn from_connection(connection: Connection) -> Self {
         QuinnClientTransport {
-            connector: Connector::Lazy("server-connection".to_string(), None),
+            connector: Connector::Lazy("127.0.0.1:7878".to_string(), None),
         }
     }
 }

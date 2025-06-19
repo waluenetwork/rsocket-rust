@@ -15,10 +15,12 @@ fn ensure_crypto_provider() {
 pub fn create_client_config() -> ClientConfig {
     ensure_crypto_provider();
     
-    let crypto = rustls::ClientConfig::builder()
+    let mut crypto = rustls::ClientConfig::builder()
         .dangerous()
         .with_custom_certificate_verifier(SkipServerVerification::new())
         .with_no_client_auth();
+    
+    crypto.alpn_protocols = vec![b"rsocket".to_vec()];
 
     quinn::ClientConfig::new(Arc::new(
         quinn::crypto::rustls::QuicClientConfig::try_from(crypto).unwrap()

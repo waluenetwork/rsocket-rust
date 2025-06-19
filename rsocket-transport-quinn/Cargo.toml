@@ -41,3 +41,7 @@ env_logger = "0.8.3"
 [[example]]
 name = "simple-test"
 path = "examples/simple-test.rs"
+
+[[example]]
+name = "integration-test"
+path = "examples/integration-test.rs"

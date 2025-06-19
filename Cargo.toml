@@ -8,6 +8,7 @@ members = [
   "rsocket-transport-wasm",
   "rsocket-transport-quinn",
   "rsocket-transport-iroh",
+  "rsocket-python-ffi",
   "rsocket-messaging",
   "examples",
   "rsocket-test",

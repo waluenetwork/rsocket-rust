@@ -2,8 +2,19 @@ use quinn::{ClientConfig, ServerConfig};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::client::danger::{ServerCertVerifier, ServerCertVerified, HandshakeSignatureValid};
 use std::sync::Arc;
+use std::sync::Once;
+
+static INIT: Once = Once::new();
+
+fn ensure_crypto_provider() {
+    INIT.call_once(|| {
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    });
+}
 
 pub fn create_client_config() -> ClientConfig {
+    ensure_crypto_provider();
+    
     let crypto = rustls::ClientConfig::builder()
         .dangerous()
         .with_custom_certificate_verifier(SkipServerVerification::new())
@@ -15,6 +26,8 @@ pub fn create_client_config() -> ClientConfig {
 }
 
 pub fn create_server_config() -> ServerConfig {
+    ensure_crypto_provider();
+    
     let cert = generate_self_signed_cert();
     let key = cert.serialize_private_key_der();
     let cert_der = CertificateDer::from(cert.serialize_der().unwrap());

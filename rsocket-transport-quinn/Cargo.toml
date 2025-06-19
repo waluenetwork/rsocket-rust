@@ -34,3 +34,10 @@ features = [ "rt", "rt-multi-thread", "net", "sync", "io-util", "macros" ]
 version = "0.6.6"
 default-features = false
 features = ["codec"]
+
+[dev-dependencies]
+env_logger = "0.8.3"
+
+[[example]]
+name = "simple-test"
+path = "examples/simple-test.rs"

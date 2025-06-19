@@ -49,3 +49,7 @@ path = "examples/integration-test.rs"
 [[example]]
 name = "debug-test"
 path = "examples/debug-test.rs"
+
+[[example]]
+name = "all-patterns-test"
+path = "examples/all-patterns-test.rs"

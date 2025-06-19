@@ -6,7 +6,7 @@ use futures::future::BoxFuture;
 use futures::StreamExt;
 use anyhow;
 
-use crate::{client::IrohClientTransport, connection::IrohConnectionWithStreams, misc::{create_iroh_endpoint, IrohConfig, RSOCKET_ALPN}};
+use crate::{client::IrohClientTransport, misc::{create_iroh_endpoint, IrohConfig, RSOCKET_ALPN}};
 
 #[derive(Debug)]
 pub struct IrohServerTransport {
@@ -119,16 +119,16 @@ impl ServerTransport for IrohServerTransport {
                 match receiver.next().await {
                     Some(connection) => {
                         log::info!("✅ Server: Received incoming Iroh P2P connection");
-                        log::info!("🔗 Opening bidirectional stream for incoming Iroh connection");
-                        match connection.open_bi().await {
+                        
+                        match connection.accept_bi().await {
                             Ok((send_stream, recv_stream)) => {
-                                log::info!("✅ Bidirectional stream opened for incoming connection");
-                                let iroh_connection = IrohConnectionWithStreams::new(send_stream, recv_stream);
-                                Some(Ok(IrohClientTransport::from_connection_with_streams(iroh_connection)))
+                                log::info!("✅ Server: Opened bidirectional stream for incoming connection");
+                                let connection_with_streams = crate::connection::IrohConnectionWithStreams::new(send_stream, recv_stream);
+                                Some(Ok(IrohClientTransport::from_connection_with_streams(connection_with_streams)))
                             }
                             Err(e) => {
-                                log::error!("❌ Failed to open bidirectional stream for incoming connection: {:?}", e);
-                                Some(Err(RSocketError::Other(e.into()).into()))
+                                log::error!("❌ Server: Failed to open bidirectional stream: {:?}", e);
+                                Some(Err(RSocketError::Other(anyhow::anyhow!("Failed to open bidirectional stream: {}", e).into()).into()))
                             }
                         }
                     }

@@ -3,7 +3,7 @@
 use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::Transport, Result};
 
-use crate::{connection::{IrohConnection, IrohConnectionWithStreams}, misc::{create_iroh_endpoint, parse_node_addr, IrohConfig, RSOCKET_ALPN}};
+use crate::{connection::IrohConnectionWithStreams, misc::{create_iroh_endpoint, parse_node_addr, IrohConfig, RSOCKET_ALPN}};
 
 #[derive(Debug)]
 enum Connector {

@@ -45,3 +45,7 @@ path = "examples/simple-test.rs"
 [[example]]
 name = "integration-test"
 path = "examples/integration-test.rs"
+
+[[example]]
+name = "debug-test"
+path = "examples/debug-test.rs"

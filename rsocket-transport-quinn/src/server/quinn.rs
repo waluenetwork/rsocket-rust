@@ -4,7 +4,7 @@ use quinn::Endpoint;
 use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
 
-use crate::{client::QuinnClientTransport, misc::create_server_config};
+use crate::{client::QuinnClientTransport, connection::QuinnConnection, misc::create_server_config};
 
 #[derive(Debug)]
 pub struct QuinnServerTransport {
@@ -35,7 +35,7 @@ impl ServerTransport for QuinnServerTransport {
             .map_err(|e| RSocketError::Other(e.into()))?;
         
         self.endpoint = Some(endpoint);
-        debug!("QUIC server listening on: {}", &self.addr);
+        log::debug!("QUIC server listening on: {}", &self.addr);
         Ok(())
     }
 
@@ -46,7 +46,13 @@ impl ServerTransport for QuinnServerTransport {
                     Some(connecting) => {
                         match connecting.await {
                             Ok(connection) => {
-                                Some(Ok(QuinnClientTransport::from_connection(connection)))
+                                match connection.accept_bi().await {
+                                    Ok((send_stream, recv_stream)) => {
+                                        let quinn_connection = QuinnConnection::new(send_stream, recv_stream);
+                                        Some(Ok(QuinnClientTransport::from_quinn_connection(quinn_connection)))
+                                    }
+                                    Err(e) => Some(Err(RSocketError::Other(e.into()).into())),
+                                }
                             }
                             Err(e) => Some(Err(RSocketError::Other(e.into()).into())),
                         }

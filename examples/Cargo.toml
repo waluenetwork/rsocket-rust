@@ -13,13 +13,16 @@ clap = "2.33.3"
 pprof = { version = "0.4.3", features = ["flamegraph"] }
 
 [dev-dependencies.rsocket_rust]
+path = "../rsocket"
 version = "0.7"
 
 [dev-dependencies.rsocket_rust_transport_tcp]
+path = "../rsocket-transport-tcp"
 version = "0.7"
 features = ["tls"]
 
 [dev-dependencies.rsocket_rust_transport_websocket]
+path = "../rsocket-transport-websocket"
 version = "0.7"
 
 [dev-dependencies.rsocket_rust_transport_quinn]

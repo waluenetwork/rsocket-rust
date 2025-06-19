@@ -8,7 +8,7 @@ use crate::{connection::QuinnConnection, misc::create_client_config};
 
 #[derive(Debug)]
 enum Connector {
-    Direct(Connection),
+    Direct(QuinnConnection),
     Lazy(String, Option<ClientConfig>),
 }
 
@@ -23,12 +23,8 @@ impl Transport for QuinnClientTransport {
 
     async fn connect(self) -> Result<QuinnConnection> {
         match self.connector {
-            Connector::Direct(connection) => {
-                let (send_stream, recv_stream) = connection.open_bi()
-                    .await
-                    .map_err(|e| RSocketError::Other(e.into()))?;
-                
-                Ok(QuinnConnection::new(send_stream, recv_stream))
+            Connector::Direct(quinn_connection) => {
+                Ok(quinn_connection)
             }
             Connector::Lazy(addr, config) => {
                 let config = config.unwrap_or_else(|| create_client_config());
@@ -72,17 +68,21 @@ impl From<&str> for QuinnClientTransport {
 }
 
 impl QuinnClientTransport {
-    pub fn from_connection(connection: Connection) -> Self {
+    pub fn from_connection(_connection: Connection) -> Self {
+        panic!("from_connection should not be used - use from_quinn_connection instead");
+    }
+    
+    pub fn from_quinn_connection(quinn_connection: QuinnConnection) -> Self {
         QuinnClientTransport {
-            connector: Connector::Direct(connection),
+            connector: Connector::Direct(quinn_connection),
         }
     }
 }
 
-impl From<Connection> for QuinnClientTransport {
-    fn from(connection: Connection) -> Self {
+impl From<QuinnConnection> for QuinnClientTransport {
+    fn from(quinn_connection: QuinnConnection) -> Self {
         QuinnClientTransport {
-            connector: Connector::Direct(connection),
+            connector: Connector::Direct(quinn_connection),
         }
     }
 }

@@ -70,6 +70,31 @@ async fn main() -> rsocket_rust::Result<()> {
 
 The transport uses self-signed certificates for development. For production use, you should configure proper TLS certificates.
 
+## WebTransport Support
+
+This package includes WebTransport support for native server applications:
+
+```rust
+use rsocket_rust::prelude::*;
+use rsocket_rust_transport_quinn::webtransport::{WebTransportClientTransport, WebTransportServerTransport};
+
+// WebTransport server (native only)
+let server_transport = WebTransportServerTransport::new("0.0.0.0:4433".parse()?);
+let server = RSocketFactory::receive()
+    .transport(server_transport)
+    .start()
+    .await?;
+
+// WebTransport client (native only)  
+let client_transport = WebTransportClientTransport::new("https://localhost:4433".to_string());
+let client = RSocketFactory::connect()
+    .transport(client_transport)
+    .start()
+    .await?;
+```
+
+**Note**: WebTransport support is for native targets only. For browser-based WebTransport clients, use the `rsocket-transport-wasm` package.
+
 ## QUIC Benefits
 
 - **Multiplexing**: Multiple streams over a single connection

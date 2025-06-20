@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 
 members = [
   "rsocket",
@@ -8,4 +9,10 @@ members = [
   "rsocket-messaging",
   "examples",
   "rsocket-test",
+  # P1U07 Multi-language FFI bindings
+  "rsocket-ffi-core",
+  "rsocket-python-ffi",
+  "rsocket-js-ffi",
+  "rsocket-c-ffi",
+  "rsocket-go-ffi",
 ]

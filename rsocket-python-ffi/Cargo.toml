@@ -1,0 +1,51 @@
+[package]
+name = "rsocket_rust_python_ffi"
+version = "0.8.0"
+authors = ["Devin AI <devin-ai-integration[bot]@users.noreply.github.com>"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/hey-emir-kaan/rsocket-rust"
+homepage = "https://github.com/hey-emir-kaan/rsocket-rust"
+description = "Python bindings for RSocket Rust implementation"
+
+[lib]
+name = "rsocket_rust"
+crate-type = ["cdylib"]
+
+[features]
+default = []
+advanced-transports = []
+
+[dependencies]
+pyo3 = { version = "0.20", features = ["extension-module", "abi3-py38"] }
+pyo3-asyncio = { version = "0.20", features = ["tokio-runtime"] }
+tokio = { version = "1.0.3", features = ["rt", "rt-multi-thread", "net", "sync", "io-util", "macros"] }
+log = "0.4.14"
+futures = "0.3.15"
+bytes = "1.0.1"
+
+[dependencies.rsocket_rust]
+path = "../rsocket"
+version = "0.7"
+features = ["frame"]
+
+# Transport dependencies - only include existing ones
+[dependencies.rsocket_rust_transport_tcp]
+path = "../rsocket-transport-tcp"
+version = "0.7"
+
+[dependencies.rsocket_rust_transport_websocket]
+path = "../rsocket-transport-websocket"
+version = "0.7"
+
+[dependencies.rsocket_rust_transport_wasm]
+path = "../rsocket-transport-wasm"
+version = "0.7"
+
+[dependencies.rsocket_rust_ffi_core]
+path = "../rsocket-ffi-core"
+version = "0.7"
+
+[build-dependencies]
+pyo3-build-config = "0.20"

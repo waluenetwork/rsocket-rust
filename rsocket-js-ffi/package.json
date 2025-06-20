@@ -1,0 +1,34 @@
+{
+  "name": "rsocket-rust-js",
+  "version": "0.7.4",
+  "description": "JavaScript/Node.js bindings for RSocket Rust implementation",
+  "main": "index.node",
+  "scripts": {
+    "build": "cargo-cp-artifact -nc index.node -- cargo build --message-format=json-render-diagnostics",
+    "build-debug": "npm run build --",
+    "build-release": "npm run build -- --release",
+    "install": "npm run build-release",
+    "test": "node test/test.js"
+  },
+  "keywords": [
+    "rsocket",
+    "reactive",
+    "streaming",
+    "networking",
+    "async",
+    "rust",
+    "neon"
+  ],
+  "author": "Devin AI <devin-ai-integration[bot]@users.noreply.github.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hey-emir-kaan/rsocket-rust.git"
+  },
+  "devDependencies": {
+    "cargo-cp-artifact": "^0.1"
+  },
+  "engines": {
+    "node": ">= 10"
+  }
+}

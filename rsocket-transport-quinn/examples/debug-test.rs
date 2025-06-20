@@ -6,7 +6,7 @@ use std::time::Duration;
 use tokio::time::timeout;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), String> {
     env_logger::builder()
         .filter_level(log::LevelFilter::Debug)
         .init();
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("📡 Starting Quinn server transport...");
     let mut server_transport = QuinnServerTransport::from(addr);
-    server_transport.start().await?;
+    server_transport.start().await.map_err(|e| format!("Failed to start server: {:?}", e))?;
     
     println!("🔌 Creating client connection in background...");
     let client_task = tokio::spawn(async move {
@@ -30,15 +30,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match timeout(Duration::from_secs(5), client_transport.connect()).await {
             Ok(Ok(connection)) => {
                 println!("✅ Client: Connection established successfully!");
-                Ok::<_, Box<dyn std::error::Error>>(connection)
+                Ok(connection)
             }
             Ok(Err(e)) => {
                 println!("❌ Client: Connection failed: {:?}", e);
-                Err(Box::new(e) as Box<dyn std::error::Error>)
+                Err(format!("Connection failed: {:?}", e))
             }
             Err(_) => {
                 println!("❌ Client: Connection timed out");
-                Err("Connection timeout".into())
+                Err("Connection timeout".to_string())
             }
         }
     });
@@ -65,25 +65,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Ok(Err(e)) => {
                     println!("❌ Server: Server-side connection failed: {:?}", e);
-                    return Err(e.into());
+                    return Err(format!("Server-side connection failed: {:?}", e));
                 }
                 Err(_) => {
                     println!("❌ Server: Server-side connection timed out");
-                    return Err("Server-side connection timeout".into());
+                    return Err("Server-side connection timeout".to_string());
                 }
             }
         }
         Ok(Some(Err(e))) => {
             println!("❌ Server: Error accepting connection: {:?}", e);
-            return Err(e.into());
+            return Err(format!("Error accepting connection: {:?}", e));
         }
         Ok(None) => {
             println!("❌ Server: No connection received");
-            return Err("No connection received".into());
+            return Err("No connection received".to_string());
         }
         Err(_) => {
             println!("❌ Server: Timeout waiting for connection");
-            return Err("Server timeout".into());
+            return Err("Server timeout".to_string());
         }
     }
     

@@ -8,4 +8,5 @@ members = [
   "rsocket-messaging",
   "examples",
   "rsocket-test",
+  "rsocket-go-ffi",
 ]

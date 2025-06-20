@@ -1,0 +1,29 @@
+# Compiled binaries
+examples/simple-client
+examples/echo-server
+examples/performance-benchmark
+
+# Go build artifacts
+go/rsocket
+*.so
+*.a
+*.dylib
+*.dll
+
+# Build artifacts
+target/
+*.o
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go module cache
+go.sum

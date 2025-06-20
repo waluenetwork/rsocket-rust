@@ -5,9 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::JsResult;
-
-#[napi(object)]
+#[napi]
 pub struct JsPerformanceMetrics {
     start_time: Instant,
     request_count: Arc<AtomicU64>,
@@ -21,7 +19,7 @@ pub struct JsPerformanceMetrics {
 #[napi]
 impl JsPerformanceMetrics {
     #[napi(constructor)]
-    pub fn new() -> JsResult<Self> {
+    pub fn new() -> Result<Self> {
         Ok(JsPerformanceMetrics {
             start_time: Instant::now(),
             request_count: Arc::new(AtomicU64::new(0)),

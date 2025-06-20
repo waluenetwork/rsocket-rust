@@ -3,7 +3,7 @@ use napi_derive::napi;
 use rsocket_rust::prelude::Payload;
 use bytes::Bytes;
 
-#[napi(object)]
+#[napi]
 #[derive(Clone)]
 pub struct JsPayload {
     inner: Payload,

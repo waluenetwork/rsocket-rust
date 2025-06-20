@@ -16,6 +16,7 @@ use web_sys::{ErrorEvent, Event, FileReader, MessageEvent, ProgressEvent, WebSoc
 
 use super::connection::WebsocketConnection;
 
+#[derive(Debug)]
 pub struct WebsocketClientTransport {
     url: String,
 }

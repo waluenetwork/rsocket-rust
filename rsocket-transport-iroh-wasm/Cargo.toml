@@ -1,0 +1,94 @@
+[package]
+name = "rsocket_rust_transport_iroh_wasm"
+version = "0.7.4"
+authors = ["Jeffsky <jjeffcaii@outlook.com>"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/rsocket/rsocket-rust"
+homepage = "https://github.com/rsocket/rsocket-rust"
+description = "Iroh P2P WASM RSocket transport implementation with WebWorkers support."
+
+[features]
+default = ["webworkers"]
+webworkers = []
+wasm-only = ["webworkers"]
+
+[dependencies]
+log = "0.4.14"
+wasm-bindgen = "0.2.74"
+wasm-bindgen-futures = "0.4.24"
+js-sys = "0.3.51"
+futures-channel = "0.3.15"
+futures-util = { version = "0.3.15", default-features = false, features = ["sink"] }
+serde = "1.0.126"
+serde_derive = "1.0.126"
+serde-wasm-bindgen = "0.3.1"
+bytes = "1.0.1"
+wasm-logger = "0.2.0"
+console_error_panic_hook = "0.1.7"
+
+# Temporarily remove rsocket_rust dependency to fix WASM compilation
+# Will implement minimal RSocket frame handling directly for WASM compatibility
+# [dependencies.rsocket_rust]
+# path = "../rsocket"
+# version = "0.7"
+# features = ["frame"]
+# default-features = false
+
+# Removed rsocket_rust_transport_wasm dependency to avoid tokio conflicts in WASM
+# [dependencies.rsocket_rust_transport_wasm]
+# path = "../rsocket-transport-wasm"
+# version = "0.7"
+# default-features = false
+# features = ["wasm-only"]
+
+[dependencies.web-sys]
+version = "0.3.51"
+features = [
+  "console",
+  "RtcPeerConnection",
+  "RtcDataChannel",
+  "RtcConfiguration",
+  "RtcIceServer",
+  "RtcDataChannelState",
+  "RtcPeerConnectionState",
+  "RtcSessionDescription",
+  "RtcSdpType",
+  "RtcIceCandidate",
+  "MessageEvent",
+  "ErrorEvent",
+  "Event",
+  "EventTarget",
+  "Worker",
+  "MessagePort",
+  "DedicatedWorkerGlobalScope",
+  "Navigator",
+  "Window",
+  "Url",
+  "Performance",
+  "Blob",
+]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.24"
+
+[[example]]
+name = "iroh-wasm-p2p-demo"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "iroh-wasm-webworkers-test"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "iroh-wasm-echo-client"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "simple-iroh-wasm-demo"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "iroh-wasm-capability-test"
+crate-type = ["cdylib"]

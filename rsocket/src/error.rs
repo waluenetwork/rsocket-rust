@@ -43,6 +43,18 @@ pub enum RSocketError {
     // Codec errors:
     #[error("this frame is incomplete")]
     InCompleteFrame,
+    
+    #[error("Transport not supported: {0}")]
+    TransportNotSupported(String),
+    #[error("Transport capability missing: {0}")]
+    TransportCapabilityMissing(String),
+    #[error("Transport selection failed: {0}")]
+    TransportSelectionFailed(String),
+    #[error("Platform not supported: {0}")]
+    PlatformNotSupported(String),
+    #[error("Transport configuration error: {0}")]
+    TransportConfigurationError(String),
+    
     // Custom errors:
     #[error("{0}")]
     WithDescription(String),

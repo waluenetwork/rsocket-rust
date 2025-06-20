@@ -1,0 +1,24 @@
+# Compiled binaries
+examples/simple_client
+examples/cpp_client
+examples/performance_benchmark
+examples/transport_demo
+
+# Build artifacts
+target/
+*.o
+*.so
+*.a
+*.dylib
+*.dll
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

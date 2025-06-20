@@ -24,14 +24,24 @@ cfg-if = "1.0.0"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4.24"
 
-[dependencies.tokio]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.tokio]
 version = "1.0.3"
 default-features = false
 features = [ "macros", "rt", "rt-multi-thread", "sync", "time" ]
 
-[dependencies.tokio-stream]
+[target.'cfg(target_arch = "wasm32")'.dependencies.tokio]
+version = "1.0.3"
+default-features = false
+features = [ "sync", "macros", "io-util", "rt", "time" ]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.tokio-stream]
 version = "0.1.7"
 features = ["sync"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.tokio-stream]
+version = "0.1.7"
+default-features = false
+features = []
 
 [features]
 default = []

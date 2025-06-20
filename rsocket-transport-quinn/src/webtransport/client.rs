@@ -1,5 +1,5 @@
 use rsocket_rust::async_trait;
-use rsocket_rust::{transport::Transport, Result, error::RSocketError};
+use rsocket_rust::{transport::Transport, Result};
 
 use super::connection::WebTransportConnection;
 

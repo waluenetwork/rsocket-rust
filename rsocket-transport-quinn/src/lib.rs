@@ -12,6 +12,9 @@ mod server;
 #[cfg(feature = "webtransport")]
 pub mod webtransport;
 
+#[cfg(feature = "iroh-roq")]
+pub mod iroh_roq;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use client::QuinnClientTransport;
 #[cfg(not(target_arch = "wasm32"))]
@@ -21,3 +24,9 @@ pub use server::QuinnServerTransport;
 
 #[cfg(feature = "webtransport")]
 pub use webtransport::{WebTransportClientTransport, WebTransportConnection, WebTransportServerTransport};
+
+#[cfg(feature = "iroh-roq")]
+pub use iroh_roq::{
+    IrohRoqClientTransport, IrohRoqServerTransport, IrohRoqConnection, 
+    IrohRoqSession, IrohRoqSessionConfig
+};

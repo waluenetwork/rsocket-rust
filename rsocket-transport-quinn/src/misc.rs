@@ -40,7 +40,10 @@ pub fn create_server_config() -> ServerConfig {
         .with_single_cert(vec![cert_der], key_der)
         .unwrap();
     
-    server_crypto.alpn_protocols = vec![b"rsocket".to_vec()];
+    server_crypto.alpn_protocols = vec![
+        b"rsocket".to_vec(),
+        b"/iroh/roq/1".to_vec(),
+    ];
 
     let server_config = quinn::crypto::rustls::QuicServerConfig::try_from(server_crypto).unwrap();
     ServerConfig::with_crypto(Arc::new(server_config))
@@ -108,4 +111,24 @@ impl ServerCertVerifier for SkipServerVerification {
             rustls::SignatureScheme::ED448,
         ]
     }
+}
+
+#[cfg(feature = "iroh-roq")]
+pub fn create_iroh_roq_server_config() -> ServerConfig {
+    ensure_crypto_provider();
+    
+    let cert = generate_self_signed_cert();
+    let key = cert.serialize_private_key_der();
+    let cert_der = CertificateDer::from(cert.serialize_der().unwrap());
+    let key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key));
+
+    let mut server_crypto = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![cert_der], key_der)
+        .unwrap();
+    
+    server_crypto.alpn_protocols = vec![b"/iroh/roq/1".to_vec()];
+
+    let server_config = quinn::crypto::rustls::QuicServerConfig::try_from(server_crypto).unwrap();
+    ServerConfig::with_crypto(Arc::new(server_config))
 }

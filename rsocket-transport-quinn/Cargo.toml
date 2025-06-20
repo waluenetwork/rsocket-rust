@@ -21,20 +21,21 @@ bytes = "1.0.1"
 quinn = "0.11"
 rustls = "0.23"
 rcgen = "0.12"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", optional = true, features = [
   "WebTransport",
   "ReadableStream", 
   "WritableStream",
+  "ReadableStreamDefaultReader",
+  "WritableStreamDefaultWriter",
   "console",
 ] }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
 js-sys = { version = "0.3", optional = true }
 
-[dependencies.rsocket_rust]
-path = "../rsocket"
-version = "0.7"
-features = ["frame"]
+
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.tokio]
 version = "1.0.3"
@@ -45,6 +46,18 @@ features = [ "rt", "rt-multi-thread", "net", "sync", "io-util", "macros" ]
 version = "0.6.6"
 default-features = false
 features = ["codec"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.rsocket_rust]
+path = "../rsocket"
+version = "0.7"
+features = ["frame"]
+default-features = false
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.rsocket_rust]
+path = "../rsocket"
+version = "0.7"
+features = ["frame"]
+default-features = false
 
 [dev-dependencies]
 env_logger = "0.8.3"

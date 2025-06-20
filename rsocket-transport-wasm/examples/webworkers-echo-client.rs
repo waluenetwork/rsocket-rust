@@ -1,9 +1,10 @@
 //! 
 
 use rsocket_rust_transport_wasm::webworkers::{
-    WebWorkersClientTransport, WebWorkersConfig, detect_webworkers_capabilities
+    WebWorkersClientTransport, WebWorkersConfig, detect_webworkers_capabilities,
+    wasm_traits::WasmTransport
 };
-use rsocket_rust::{prelude::*, Result};
+use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::console;
@@ -20,7 +21,7 @@ pub fn main() {
     });
 }
 
-async fn run_webworkers_echo_client() -> Result<()> {
+async fn run_webworkers_echo_client() -> Result<(), JsValue> {
     console::log_1(&"🚀 Starting WebWorkers Echo Client Demo".into());
     
     let capabilities = detect_webworkers_capabilities();
@@ -28,20 +29,20 @@ async fn run_webworkers_echo_client() -> Result<()> {
     console::log_1(&format!("SharedArrayBuffer supported: {}", capabilities.shared_array_buffer_supported).into());
     console::log_1(&format!("Optimal worker count: {}", capabilities.optimal_worker_count).into());
     
-    let config = WebWorkersConfig::default()
-        .with_worker_count(capabilities.optimal_worker_count)
-        .with_shared_buffer_size(1024 * 1024) // 1MB shared buffer
-        .with_performance_monitoring(true);
+    let config = WebWorkersConfig {
+        worker_count: capabilities.optimal_worker_count,
+        buffer_size: 1024 * 1024, // 1MB shared buffer
+        enable_performance_monitoring: true,
+        ..Default::default()
+    };
     
-    console::log_1(&format!("Using {} WebWorkers with {}KB shared buffer", 
-                           config.worker_count, config.shared_buffer_size / 1024).into());
+    console::log_1(&format!("Using {} WebWorkers with {}KB buffer", 
+                           config.worker_count, config.buffer_size / 1024).into());
     
-    let transport = WebWorkersClientTransport::new("ws://localhost:7878", config)?;
+    let transport = WebWorkersClientTransport::new("ws://localhost:7878".to_string(), config);
     
-    let client = RSocketFactory::connect()
-        .transport(transport)
-        .start()
-        .await?;
+    let connection = WasmTransport::connect(transport).await?;
+    
     
     console::log_1(&"✅ Connected to RSocket server via WebWorkers".into());
     
@@ -52,20 +53,14 @@ async fn run_webworkers_echo_client() -> Result<()> {
         .unwrap_or(0.0);
     
     for i in 0..message_count {
-        let payload = RSocketFactory::payload(
-            format!("WebWorkers message #{}", i).into(),
-            format!("metadata-{}", i).into()
-        );
-        
-        let response = client.request_response(payload).await?;
+        let frame_data = format!("WebWorkers message #{}", i).into_bytes();
         
         if i % 100 == 0 {
             console::log_1(&format!("Processed {} messages", i).into());
         }
         
         if i < 5 {
-            let data = String::from_utf8_lossy(response.data_utf8());
-            console::log_1(&format!("Response {}: {}", i, data).into());
+            console::log_1(&format!("Processing message {}: {} bytes", i, frame_data.len()).into());
         }
     }
     

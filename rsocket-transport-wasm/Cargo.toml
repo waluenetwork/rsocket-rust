@@ -13,6 +13,8 @@ description = "WASM Websocket RSocket transport implementation with WebWorkers s
 default = []
 webworkers = ["web-sys/Worker", "web-sys/MessagePort", "web-sys/DedicatedWorkerGlobalScope"]
 wasm-only = ["webworkers"]
+simd = ["webworkers"]
+advanced-optimizations = ["simd", "webworkers"]
 
 [dependencies]
 bytes = "1.0.1"
@@ -23,6 +25,8 @@ js-sys = "0.3.51"
 serde = "1.0.126"
 serde_derive = "1.0.126"
 log = "0.4.14"
+wasm-logger = "0.2.0"
+console_error_panic_hook = "0.1.7"
 
 [dependencies.rsocket_rust]
 path = "../rsocket"

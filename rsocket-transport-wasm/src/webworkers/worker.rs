@@ -2,15 +2,14 @@
 use wasm_bindgen::prelude::*;
 
 use web_sys::{Worker, MessageEvent, ErrorEvent};
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
 
 #[derive(Debug)]
 pub struct RSocketWorker {
     worker: Worker,
-    task_queue: Rc<RefCell<VecDeque<Vec<u8>>>>,
-    is_busy: Rc<RefCell<bool>>,
+    task_queue: Arc<Mutex<VecDeque<Vec<u8>>>>,
+    is_busy: Arc<Mutex<bool>>,
     worker_id: usize,
 }
 
@@ -26,17 +25,21 @@ impl RSocketWorker {
     pub fn new(worker_id: usize) -> Result<Self, JsValue> {
         let worker = Worker::new("/rsocket-worker.js")?;
         
-        let task_queue = Rc::new(RefCell::new(VecDeque::new()));
-        let is_busy = Rc::new(RefCell::new(false));
+        let task_queue = Arc::new(Mutex::new(VecDeque::new()));
+        let is_busy = Arc::new(Mutex::new(false));
         
-        let task_queue_clone = Rc::clone(&task_queue);
-        let is_busy_clone = Rc::clone(&is_busy);
+        let task_queue_clone = Arc::clone(&task_queue);
+        let is_busy_clone = Arc::clone(&is_busy);
         
         let onmessage_callback = Closure::wrap(Box::new(move |_event: MessageEvent| {
-            *is_busy_clone.borrow_mut() = false;
+            if let Ok(mut is_busy) = is_busy_clone.lock() {
+                *is_busy = false;
+            }
             
-            if let Some(_next_task) = task_queue_clone.borrow_mut().pop_front() {
-                log::debug!("Processing next queued task");
+            if let Ok(mut queue) = task_queue_clone.lock() {
+                if let Some(_next_task) = queue.pop_front() {
+                    log::debug!("Processing next queued task");
+                }
             }
         }) as Box<dyn FnMut(_)>);
         
@@ -59,12 +62,15 @@ impl RSocketWorker {
     }
     
     pub fn process_frame(&self, frame: Vec<u8>) -> Result<(), JsValue> {
-        if *self.is_busy.borrow() {
-            self.task_queue.borrow_mut().push_back(frame);
+        let is_busy = self.is_busy.lock().map_err(|_| JsValue::from_str("Mutex lock failed"))?;
+        if *is_busy {
+            drop(is_busy);
+            self.task_queue.lock().map_err(|_| JsValue::from_str("Mutex lock failed"))?.push_back(frame);
             return Ok(());
         }
+        drop(is_busy);
         
-        *self.is_busy.borrow_mut() = true;
+        *self.is_busy.lock().map_err(|_| JsValue::from_str("Mutex lock failed"))? = true;
         
         let js_array = js_sys::Uint8Array::new_with_length(frame.len() as u32);
         js_array.copy_from(&frame);
@@ -75,11 +81,11 @@ impl RSocketWorker {
     }
     
     pub fn is_busy(&self) -> bool {
-        *self.is_busy.borrow()
+        self.is_busy.lock().map(|is_busy| *is_busy).unwrap_or(false)
     }
     
     pub fn queue_length(&self) -> usize {
-        self.task_queue.borrow().len()
+        self.task_queue.lock().map(|queue| queue.len()).unwrap_or(0)
     }
 }
 

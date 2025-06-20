@@ -5,6 +5,8 @@ pub mod performance;
 pub mod shared_buffer;
 pub mod worker;
 pub mod wasm_traits;
+pub mod simd_optimizations;
+pub mod memory_pool;
 
 #[cfg(feature = "wasm-only")]
 pub mod simple_wasm;
@@ -14,6 +16,8 @@ pub use performance::{PerformanceMonitor, BenchmarkResults};
 pub use shared_buffer::SharedRingBuffer;
 pub use worker::{RSocketWorker, WorkerPool};
 pub use wasm_traits::{WasmTransport, WasmConnection, WasmFrameSink, WasmFrameStream};
+pub use simd_optimizations::{SIMDFrameProcessor, is_simd_supported};
+pub use memory_pool::{MemoryPool, MemoryPoolStats};
 
 #[derive(Debug, Clone)]
 pub struct WebWorkersConfig {
@@ -24,6 +28,11 @@ pub struct WebWorkersConfig {
     pub enable_performance_monitoring: bool,
     pub enable_zero_copy: bool,
     pub max_concurrent_tasks: usize,
+    pub enable_simd_optimizations: bool,
+    pub enable_memory_pooling: bool,
+    pub memory_pool_max_size: usize,
+    pub simd_batch_size: usize,
+    pub bulk_transfer_threshold: usize,
 }
 
 impl Default for WebWorkersConfig {
@@ -36,6 +45,11 @@ impl Default for WebWorkersConfig {
             enable_performance_monitoring: true,
             enable_zero_copy: true,
             max_concurrent_tasks: 1000,
+            enable_simd_optimizations: true,
+            enable_memory_pooling: true,
+            memory_pool_max_size: 200,
+            simd_batch_size: 16,
+            bulk_transfer_threshold: 4096,
         }
     }
 }

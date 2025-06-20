@@ -33,6 +33,39 @@ features = [ "macros", "rt", "rt-multi-thread", "sync", "time" ]
 version = "0.1.7"
 features = ["sync"]
 
+[dependencies.crossbeam]
+version = "0.8"
+optional = true
+
+[dependencies.crossbeam-channel]
+version = "0.5"
+optional = true
+
+[dependencies.crossbeam-deque]
+version = "0.8"
+optional = true
+
+[dependencies.crossbeam-skiplist]
+version = "0.1"
+optional = true
+
+[dependencies.crossbeam-epoch]
+version = "0.9"
+optional = true
+
+[dependencies.crossbeam-utils]
+version = "0.8"
+optional = true
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tokio-test = "0.4"
+
+[[bench]]
+name = "crossbeam_performance"
+harness = false
+
 [features]
 default = []
 frame = []
+crossbeam-optimizations = ["crossbeam", "crossbeam-channel", "crossbeam-deque", "crossbeam-skiplist"]

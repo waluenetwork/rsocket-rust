@@ -20,7 +20,7 @@ use crate::spi::{Flux, RSocket, ServerResponder};
 use crate::utils::EmptyRSocket;
 use crate::{runtime, Result};
 
-struct DuplexSocketInner {
+pub struct DuplexSocketInner {
     seq: StreamID,
     responder: Responder,
     tx: mpsc::UnboundedSender<Frame>,
@@ -42,7 +42,7 @@ pub(crate) struct ServerRequester {
 }
 
 pub(crate) struct DuplexSocket {
-    inner: Arc<DuplexSocketInner>,
+    pub inner: Arc<DuplexSocketInner>,
 }
 
 #[derive(Clone)]
@@ -585,13 +585,13 @@ impl DuplexSocket {
         }
     }
 
-    pub(crate) fn client_requester(&self) -> ClientRequester {
+    pub fn client_requester(&self) -> ClientRequester {
         ClientRequester {
             inner: self.inner.clone(),
         }
     }
 
-    pub(crate) fn server_requester(&self) -> ServerRequester {
+    pub fn server_requester(&self) -> ServerRequester {
         ServerRequester {
             inner: Arc::downgrade(&self.inner),
         }

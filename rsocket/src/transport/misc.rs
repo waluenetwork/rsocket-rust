@@ -1,3 +1,4 @@
+
 use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
 use std::sync::Arc;
 
@@ -16,7 +17,7 @@ impl StreamID {
 
     pub(crate) fn next(&self) -> u32 {
         let counter = self.inner.clone();
-        counter.fetch_add(2, Ordering::SeqCst)
+        counter.fetch_add(2, Ordering::Relaxed)
     }
 }
 
@@ -39,7 +40,7 @@ impl Counter {
     }
 
     pub(crate) fn count_down(&self) -> i64 {
-        self.inner.fetch_add(-1, Ordering::SeqCst) - 1
+        self.inner.fetch_add(-1, Ordering::AcqRel) - 1
     }
 }
 
@@ -49,5 +50,40 @@ pub(crate) fn debug_frame(snd: bool, f: &Frame) {
         debug!("===> SND: {:?}", f);
     } else {
         debug!("<=== RCV: {:?}", f);
+    }
+}
+
+pub struct FrameBatcher {
+    batch: crossbeam_deque::Worker<crate::frame::Frame>,
+    batch_size: usize,
+}
+
+impl FrameBatcher {
+    pub fn new(batch_size: usize) -> Self {
+        Self {
+            batch: crossbeam_deque::Worker::new_fifo(),
+            batch_size,
+        }
+    }
+    
+    pub fn add_frame(&self, frame: crate::frame::Frame) {
+        self.batch.push(frame);
+    }
+    
+    pub fn process_batch<F>(&self, processor: F) 
+    where 
+        F: Fn(&[crate::frame::Frame]),
+    {
+        let mut frames = Vec::with_capacity(self.batch_size);
+        while let Some(frame) = self.batch.pop() {
+            frames.push(frame);
+            if frames.len() >= self.batch_size {
+                processor(&frames);
+                frames.clear();
+            }
+        }
+        if !frames.is_empty() {
+            processor(&frames);
+        }
     }
 }

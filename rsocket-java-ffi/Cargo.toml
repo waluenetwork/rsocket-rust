@@ -1,0 +1,45 @@
+[package]
+name = "rsocket_rust_java_ffi"
+version = "0.7.4"
+authors = ["Devin AI <devin-ai-integration[bot]@users.noreply.github.com>"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/hey-emir-kaan/rsocket-rust"
+homepage = "https://github.com/hey-emir-kaan/rsocket-rust"
+description = "Java FFI bindings for RSocket Rust implementation."
+
+[lib]
+name = "rsocket_rust_java"
+crate-type = ["cdylib", "staticlib"]
+
+[features]
+default = []
+
+[dependencies]
+log = "0.4.14"
+env_logger = "0.10"
+futures = "0.3.15"
+bytes = "1.0.1"
+tokio = { version = "1.0.3", features = ["rt", "rt-multi-thread", "net", "sync", "io-util", "macros"] }
+jni = "0.21"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+async-trait = "0.1"
+anyhow = "1.0"
+
+[dependencies.rsocket_rust]
+path = "../rsocket"
+version = "0.7"
+features = ["frame"]
+
+[dependencies.rsocket_rust_transport_tcp]
+path = "../rsocket-transport-tcp"
+version = "0.7"
+
+[dependencies.rsocket_rust_transport_websocket]
+path = "../rsocket-transport-websocket"
+version = "0.7"
+
+[build-dependencies]
+cbindgen = "0.26"

@@ -1,4 +1,5 @@
-use iroh::protocol::{ProtocolHandler, Router};
+use iroh::protocol::{ProtocolHandler, Router, AcceptError};
+use iroh::Watcher;
 use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
 use futures::channel::mpsc;
@@ -42,7 +43,7 @@ impl IrohServerTransport {
                 log::warn!("Failed to establish home relay: {:?}", e);
             }
             
-            match endpoint.node_addr().await {
+            match endpoint.node_addr().initialized().await {
                 Ok(node_addr) => {
                     log::info!("Complete NodeAddr created - NodeId: {}, Relay: {:?}, Direct addresses: {:?}", 
                               node_addr.node_id, node_addr.relay_url, node_addr.direct_addresses);
@@ -84,10 +85,11 @@ struct RSocketProtocolHandler {
 }
 
 impl ProtocolHandler for RSocketProtocolHandler {
-    fn accept(&self, connection: iroh::endpoint::Connection) -> BoxFuture<'static, anyhow::Result<()>> {
+    fn accept(&self, connection: iroh::endpoint::Connection) -> BoxFuture<'static, std::result::Result<(), AcceptError>> {
         let sender = self.connection_sender.clone();
         Box::pin(async move {
-            sender.unbounded_send(connection).map_err(|e| anyhow::anyhow!("Failed to send connection: {}", e))?;
+            sender.unbounded_send(connection)
+                .map_err(|e| AcceptError::from_err(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to send connection: {}", e))))?;
             Ok(())
         })
     }
@@ -110,9 +112,7 @@ impl ServerTransport for IrohServerTransport {
         
         let router = Router::builder(endpoint)
             .accept(RSOCKET_ALPN, protocol_handler)
-            .spawn()
-            .await
-            .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to start router: {}", e).into()))?;
+            .spawn();
         
         log::info!("Iroh P2P server started with NodeId: {}", router.endpoint().node_id());
         log::info!("Server listening for P2P connections...");

@@ -16,7 +16,8 @@ default = []
 log = "0.4.14"
 futures = "0.3.15"
 bytes = "1.0.1"
-iroh = "0.34"
+iroh = "0.90"
+iroh-base = "0.90"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"

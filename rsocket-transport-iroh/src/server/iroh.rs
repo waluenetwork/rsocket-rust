@@ -33,29 +33,19 @@ impl IrohServerTransport {
             let endpoint = router.endpoint();
             
             log::info!("Waiting for endpoint to discover direct addresses...");
-            match endpoint.direct_addresses().initialized().await {
-                Ok(direct_addrs) => {
-                    log::info!("Direct addresses discovered: {:?}", direct_addrs);
-                }
-                Err(e) => {
-                    log::warn!("Failed to get direct addresses: {:?}", e);
-                }
+            if let Err(e) = endpoint.direct_addresses().initialized().await {
+                log::warn!("Failed to get direct addresses: {:?}", e);
             }
             
             log::info!("Waiting for home relay connection...");
-            match endpoint.home_relay().initialized().await {
-                Ok(relay_url) => {
-                    log::info!("Home relay established: {:?}", relay_url);
-                }
-                Err(e) => {
-                    log::warn!("Failed to establish home relay: {:?}", e);
-                }
+            if let Err(e) = endpoint.home_relay().initialized().await {
+                log::warn!("Failed to establish home relay: {:?}", e);
             }
             
             match endpoint.node_addr().await {
                 Ok(node_addr) => {
-                    log::info!("NodeAddr created with relay: {:?}, direct_addresses: {:?}", 
-                              node_addr.relay_url, node_addr.direct_addresses);
+                    log::info!("Complete NodeAddr created - NodeId: {}, Relay: {:?}, Direct addresses: {:?}", 
+                              node_addr.node_id, node_addr.relay_url, node_addr.direct_addresses);
                     Some(node_addr)
                 },
                 Err(e) => {
@@ -63,6 +53,14 @@ impl IrohServerTransport {
                     None
                 }
             }
+        } else {
+            None
+        }
+    }
+
+    pub async fn node_addr_string(&self) -> Option<String> {
+        if let Some(node_addr) = self.node_addr().await {
+            Some(format!("{:?}", node_addr))
         } else {
             None
         }

@@ -13,6 +13,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut server_transport = IrohServerTransport::default();
     server_transport.start().await?;
     
+    println!("✅ Iroh P2P server started!");
+    
+    if let Some(node_addr_str) = server_transport.node_addr_string().await {
+        println!("🔗 Complete NodeAddr for clients: {}", node_addr_str);
+        println!("📋 Use this complete address for distributed connections");
+        println!("💡 For remote clients, use: cargo +nightly run --example iroh-echo-client '{}'", node_addr_str);
+    } else {
+        println!("⚠️  Could not get complete NodeAddr - distributed connections may fail");
+    }
+    
     let server_socket = RSocketFactory::receive()
         .transport(server_transport)
         .acceptor(Box::new(|setup, _socket| {
@@ -21,9 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }))
         .serve();
     
-    println!("✅ Iroh P2P server started!");
     println!("📡 Server listening for Iroh P2P connections...");
-    println!("🔗 Use the server's NodeId to connect from clients");
     
     if let Err(e) = server_socket.await {
         eprintln!("❌ Server error: {:?}", e);

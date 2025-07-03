@@ -44,6 +44,11 @@ impl Transport for IrohClientTransport {
                 
                 let node_addr = parse_node_addr(&addr)?;
                 
+                log::info!("🔗 Connecting to NodeAddr: {:?}", node_addr);
+                log::info!("   - NodeId: {}", node_addr.node_id);
+                log::info!("   - Relay: {:?}", node_addr.relay_url);
+                log::info!("   - Direct addresses: {:?}", node_addr.direct_addresses);
+                
                 let connection = endpoint.connect(node_addr, RSOCKET_ALPN)
                     .await
                     .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to connect: {}", e).into()))?;

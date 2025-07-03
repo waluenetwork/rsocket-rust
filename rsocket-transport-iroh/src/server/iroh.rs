@@ -49,7 +49,7 @@ impl IrohServerTransport {
                     Some(node_addr)
                 },
                 Err(e) => {
-                    log::error!("Failed to get node address: {:?}", e);
+                    log::error!("Failed to get initialized node address: {:?}", e);
                     None
                 }
             }
@@ -60,7 +60,18 @@ impl IrohServerTransport {
 
     pub async fn node_addr_string(&self) -> Option<String> {
         if let Some(node_addr) = self.node_addr().await {
-            Some(format!("{:?}", node_addr))
+            let mut addr_parts = vec![format!("NodeId: {}", node_addr.node_id)];
+            
+            if let Some(ref relay_url) = node_addr.relay_url {
+                addr_parts.push(format!("Relay: {}", relay_url));
+            }
+            
+            if !node_addr.direct_addresses.is_empty() {
+                let direct_addrs: Vec<String> = node_addr.direct_addresses.iter().map(|addr| addr.to_string()).collect();
+                addr_parts.push(format!("Direct: [{}]", direct_addrs.join(", ")));
+            }
+            
+            Some(addr_parts.join(" | "))
         } else {
             None
         }

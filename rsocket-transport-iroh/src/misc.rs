@@ -43,13 +43,13 @@ pub async fn create_iroh_endpoint(config: &IrohConfig) -> std::result::Result<En
 
 pub fn parse_node_addr(addr: &str) -> rsocket_rust::Result<NodeAddr> {
     if let Ok(node_id) = NodeId::from_str(addr) {
-        log::info!("Parsed NodeId: {}", node_id);
+        log::warn!("Parsed NodeId without relay information. Distributed connections may fail.");
         return Ok(NodeAddr::from_parts(node_id, None, vec![]));
     }
     
     Err(RSocketError::Other(std::io::Error::new(
         std::io::ErrorKind::InvalidInput,
-        format!("Invalid NodeAddr format: {}. Expected NodeId format.", addr)
+        format!("Invalid NodeAddr format: {}. Expected NodeAddr or NodeId format.", addr)
     ).into()).into())
 }
 

@@ -18,7 +18,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(node_addr_str) = server_transport.node_addr_string().await {
         println!("🔗 Complete NodeAddr for clients: {}", node_addr_str);
         println!("📋 Use this complete address for distributed connections");
-        println!("💡 For remote clients, use: cargo +nightly run --example iroh-echo-client '{}'", node_addr_str);
+        
+        if let Some(node_id) = server_transport.node_id() {
+            println!("💡 For remote clients, use: cargo +nightly run --example iroh-echo-client '{}'", node_id);
+        }
     } else {
         println!("⚠️  Could not get complete NodeAddr - distributed connections may fail");
     }

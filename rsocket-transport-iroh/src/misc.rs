@@ -42,6 +42,10 @@ pub async fn create_iroh_endpoint(config: &IrohConfig) -> std::result::Result<En
 }
 
 pub fn parse_node_addr(addr: &str) -> rsocket_rust::Result<NodeAddr> {
+    if let Ok(node_addr) = NodeAddr::from_str(addr) {
+        return Ok(node_addr);
+    }
+    
     if let Ok(node_id) = NodeId::from_str(addr) {
         log::warn!("Parsed NodeId without relay information. Distributed connections may fail.");
         return Ok(NodeAddr::from_parts(node_id, None, vec![]));

@@ -29,18 +29,21 @@ def custom_request_response(payload):
     return response
 
 def custom_request_stream(payload):
-    """Handle request-stream requests"""
+    """Handle request-stream requests with true reactive streaming"""
     data = payload.data_utf8() if payload.data_utf8() else "No data"
     print(f"📡 Request-Stream: {data}")
     
-    responses = []
-    for i in range(3):
-        response = (rsocket_rust.Payload.builder()
-                    .set_data_utf8(f"Stream item {i+1}: {data}")
-                    .set_metadata_utf8(f"stream-{i+1}")
-                    .build())
-        responses.append(response)
-    return responses
+    def stream_generator():
+        """Python generator for true reactive streaming"""
+        for i in range(5):
+            print(f"  📤 Generating stream item {i+1}")
+            response = (rsocket_rust.Payload.builder()
+                        .set_data_utf8(f"Reactive stream item {i+1}: {data}")
+                        .set_metadata_utf8(f"stream-{i+1}")
+                        .build())
+            yield response
+    
+    return stream_generator()
 
 def custom_request_channel(payloads):
     """Handle request-channel requests"""

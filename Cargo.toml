@@ -1,10 +1,14 @@
 [workspace]
+resolver = "2"
 
 members = [
   "rsocket",
   "rsocket-transport-tcp",
   "rsocket-transport-websocket",
   "rsocket-transport-wasm",
+  "rsocket-transport-quinn",
+  "rsocket-transport-iroh",
+  "rsocket-python-ffi",
   "rsocket-messaging",
   "examples",
   "rsocket-test",

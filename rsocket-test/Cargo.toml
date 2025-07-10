@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust_test"
-version = "0.0.0"
+version = "0.8.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2021"
 publish = false
@@ -17,20 +17,20 @@ serde_derive = "1.0.126"
 
 [dev-dependencies.rsocket_rust]
 path = "../rsocket"
-version = "0.7"
+version = "0.8"
 features = ["frame"]
 
 [dev-dependencies.rsocket_rust_transport_tcp]
 path = "../rsocket-transport-tcp"
-version = "0.7"
+version = "0.8"
 
 [dev-dependencies.rsocket_rust_transport_websocket]
 path = "../rsocket-transport-websocket"
-version = "0.7"
+version = "0.8"
 
 [dev-dependencies.rsocket_rust_messaging]
 path = "../rsocket-messaging"
-version = "0.7"
+version = "0.8"
 
 [dev-dependencies.tokio]
 version = "1.0.3"

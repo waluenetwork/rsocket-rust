@@ -10,17 +10,27 @@ log = "0.4.14"
 env_logger = "0.8.3"
 futures = "0.3.15"
 clap = "2.33.3"
+anyhow = "1.0"
 pprof = { version = "0.4.3", features = ["flamegraph"] }
 
 [dev-dependencies.rsocket_rust]
-version = "0.7"
+path = "../rsocket"
+version = "0.8"
 
 [dev-dependencies.rsocket_rust_transport_tcp]
-version = "0.7"
+path = "../rsocket-transport-tcp"
+version = "0.8"
 features = ["tls"]
 
 [dev-dependencies.rsocket_rust_transport_websocket]
-version = "0.7"
+path = "../rsocket-transport-websocket"
+version = "0.8"
+
+[dev-dependencies.rsocket_rust_transport_quinn]
+path = "../rsocket-transport-quinn"
+
+[dev-dependencies.rsocket_rust_transport_iroh]
+path = "../rsocket-transport-iroh"
 
 [dev-dependencies.tokio]
 version = "1.0.3"
@@ -50,3 +60,19 @@ path = "tls/server.rs"
 [[example]]
 name = "tls-client"
 path = "tls/client.rs"
+
+[[example]]
+name = "quinn-echo-server"
+path = "quinn-echo-server.rs"
+
+[[example]]
+name = "quinn-echo-client"
+path = "quinn-echo-client.rs"
+
+[[example]]
+name = "multi-transport-echo-server"
+path = "multi-transport-echo-server.rs"
+
+[[example]]
+name = "test-multi-transport-clients"
+path = "test-multi-transport-clients.rs"

@@ -50,6 +50,10 @@ name = "cli"
 path = "cli.rs"
 
 [[example]]
+name = "cli-performance-test"
+path = "cli-performance-test.rs"
+
+[[example]]
 name = "qps"
 path = "qps.rs"
 

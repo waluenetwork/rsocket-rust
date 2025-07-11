@@ -16,9 +16,9 @@ async fn main() -> Result<()> {
     println!("🚀 Starting Multi-Transport RSocket Echo Server");
     println!("📡 Supporting: TCP, WebSocket, QUIC (Quinn), and Iroh P2P");
 
-    let tcp_addr: SocketAddr = "127.0.0.1:7878".parse().unwrap();
-    let ws_addr: SocketAddr = "127.0.0.1:7879".parse().unwrap();
-    let quic_addr: SocketAddr = "127.0.0.1:7880".parse().unwrap();
+    let tcp_addr: SocketAddr = "0.0.0.0:7878".parse().unwrap();
+    let ws_addr: SocketAddr = "0.0.0.0:7879".parse().unwrap();
+    let quic_addr: SocketAddr = "0.0.0.0:7880".parse().unwrap();
 
     println!("🔧 Configuring transports:");
     println!("  📞 TCP:       {}", tcp_addr);

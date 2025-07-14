@@ -25,7 +25,7 @@ impl PyRSocketFactory {
                 .await
             {
                 Ok(client) => Ok(PyClient::from_rust(client)),
-                Err(_) => Err(PyErr::new::<pyo3::exceptions::PyConnectionError, _>("TCP connection failed")),
+                Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("TCP connection failed: {}", e))),
             }
         })
     }
@@ -39,7 +39,7 @@ impl PyRSocketFactory {
                 .await
             {
                 Ok(client) => Ok(PyClient::from_rust(client)),
-                Err(_) => Err(PyErr::new::<pyo3::exceptions::PyConnectionError, _>("WebSocket connection failed")),
+                Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("WebSocket connection failed: {}", e))),
             }
         })
     }
@@ -53,7 +53,7 @@ impl PyRSocketFactory {
                 .await
             {
                 Ok(client) => Ok(PyClient::from_rust(client)),
-                Err(_) => Err(PyErr::new::<pyo3::exceptions::PyConnectionError, _>("QUIC connection failed")),
+                Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("QUIC connection failed: {}", e))),
             }
         })
     }
@@ -67,7 +67,7 @@ impl PyRSocketFactory {
                 .await
             {
                 Ok(client) => Ok(PyClient::from_rust(client)),
-                Err(_) => Err(PyErr::new::<pyo3::exceptions::PyConnectionError, _>("Iroh connection failed")),
+                Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Iroh connection failed: {}", e))),
             }
         })
     }

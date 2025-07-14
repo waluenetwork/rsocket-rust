@@ -26,12 +26,12 @@ impl PyPayload {
         }
     }
 
-    fn data(&self) -> Option<Vec<u8>> {
-        self.inner.data().map(|bytes| bytes.to_vec())
+    fn data(&self) -> Option<&[u8]> {
+        self.inner.data()
     }
 
-    fn metadata(&self) -> Option<Vec<u8>> {
-        self.inner.metadata().map(|bytes| bytes.to_vec())
+    fn metadata(&self) -> Option<&[u8]> {
+        self.inner.metadata()
     }
 
     fn data_utf8(&self) -> Option<String> {

@@ -8,6 +8,7 @@ use crate::transport::*;
 #[pyclass(name = "RSocketFactory")]
 pub struct PyRSocketFactory;
 
+
 #[pymethods]
 impl PyRSocketFactory {
     #[new]
@@ -24,7 +25,7 @@ impl PyRSocketFactory {
                 .await
             {
                 Ok(client) => Ok(PyClient::from_rust(client)),
-                Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("TCP connection failed: {}", e))),
+                Err(_) => Err(PyErr::new::<pyo3::exceptions::PyConnectionError, _>("TCP connection failed")),
             }
         })
     }
@@ -38,7 +39,7 @@ impl PyRSocketFactory {
                 .await
             {
                 Ok(client) => Ok(PyClient::from_rust(client)),
-                Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("WebSocket connection failed: {}", e))),
+                Err(_) => Err(PyErr::new::<pyo3::exceptions::PyConnectionError, _>("WebSocket connection failed")),
             }
         })
     }
@@ -52,7 +53,7 @@ impl PyRSocketFactory {
                 .await
             {
                 Ok(client) => Ok(PyClient::from_rust(client)),
-                Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("QUIC connection failed: {}", e))),
+                Err(_) => Err(PyErr::new::<pyo3::exceptions::PyConnectionError, _>("QUIC connection failed")),
             }
         })
     }
@@ -66,7 +67,7 @@ impl PyRSocketFactory {
                 .await
             {
                 Ok(client) => Ok(PyClient::from_rust(client)),
-                Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Iroh connection failed: {}", e))),
+                Err(_) => Err(PyErr::new::<pyo3::exceptions::PyConnectionError, _>("Iroh connection failed")),
             }
         })
     }

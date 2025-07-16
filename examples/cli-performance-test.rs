@@ -23,8 +23,8 @@ async fn main() -> Result<()> {
     
     println!("{:?}", args);
 
-    let rsocket_method = args[1].clone(); // serial_loop, concurrent_unbounded concurrent_controlled
-    let performance_test = args[2].clone();
+    let rsocket_method = args[1].clone(); // request_response, fire_and_forget
+    let performance_test = args[2].clone(); // serial_loop, concurrent_unbounded, concurrent_controlled
     let url = args[3].clone(); // 127.0.0.1:7878
     let transport_name = args[4].clone(); // tcp or websocket    
     let num_requests = args[5].parse::<i32>().unwrap(); // request count

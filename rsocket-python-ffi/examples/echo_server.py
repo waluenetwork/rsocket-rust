@@ -7,17 +7,24 @@ Demonstrates running a server that accepts connections on all transport types.
 import asyncio
 import rsocket_rust
 
-def echo_handler(setup_payload):
-    """Simple echo handler that returns the same payload"""
-    print(f"New connection with setup: {setup_payload.data_utf8()}")
-    return None
+def custom_request_response(payload):
+    """Handle request-response requests"""
+    data = payload.data_utf8() if payload.data_utf8() else "No data"
+    print(f"📞 Request-Response: {data}")
+    
+    response = (rsocket_rust.Payload.builder()
+                .set_data_utf8(f"Custom Echo: {data}")
+                .set_metadata_utf8("custom-response")
+                .build())
+    return response
+
 
 async def main():
     print("🚀 Starting Multi-Transport RSocket Echo Server")
     print("📡 Supporting: TCP, WebSocket, QUIC, and Iroh P2P")
     
     handler = (rsocket_rust.RSocketHandler()
-            .request_response(echo_handler));
+            .request_response(custom_request_response))
     
     tcp_transport = rsocket_rust.TcpServerTransport("0.0.0.0:7878")
     ws_transport  = rsocket_rust.WebSocketServerTransport("0.0.0.0:7879")

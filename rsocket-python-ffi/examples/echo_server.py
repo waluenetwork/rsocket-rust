@@ -26,12 +26,16 @@ async def main():
         print("📋 Ready to accept connections")
         print("🔄 Use Ctrl+C to stop the server")
     
+    handler = (rsocket_rust.RSocketHandler()
+            .request_response(echo_handler))
+
+
     server = (rsocket_rust.MultiTransportServerBuilder()
               .add_tcp_transport("TCP", tcp_transport)
               .add_websocket_transport("WebSocket", ws_transport)
               .add_quic_transport("QUIC", quic_transport)
               .add_iroh_transport("Iroh-P2P", iroh_transport)
-              .acceptor(echo_handler)
+              .acceptor(handler)
               .on_start(on_start))
     
     print("🔧 Server configured with all transport types")

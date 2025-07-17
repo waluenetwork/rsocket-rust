@@ -35,8 +35,12 @@ async def main():
         
         print("✅ Configured multi-transport server builder")
         
+        handler = (rsocket_rust.RSocketHandler()
+               .request_response(echo_handler))
+
+
         server_builder = (server_builder
-                         .acceptor(echo_handler)
+                         .acceptor(handler)
                          .on_start(lambda: print("🎉 Multi-Transport Server Started!")))
         
         print("✅ Server configured with echo handler")

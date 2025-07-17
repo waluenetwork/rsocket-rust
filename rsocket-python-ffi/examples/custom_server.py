@@ -70,7 +70,7 @@ async def main():
                .request_stream(custom_request_stream)
                .request_channel(custom_request_channel))
     
-    tcp_transport = rsocket_rust.TcpServerTransport("127.0.0.1:7879")
+    tcp_transport = rsocket_rust.TcpServerTransport("127.0.0.1:7878")
     
     def on_start():
         print("🎉 Custom Server Started!")

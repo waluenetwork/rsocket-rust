@@ -1,7 +1,8 @@
 
-
+use iroh::{Endpoint, NodeAddr, NodeId};
 use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::Transport, Result};
+use anyhow;
 
 use crate::{connection::IrohConnectionWithStreams, misc::{create_iroh_endpoint, parse_node_addr, IrohConfig, RSOCKET_ALPN}};
 
@@ -43,6 +44,11 @@ impl Transport for IrohClientTransport {
                     .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to create endpoint: {}", e).into()))?;
                 
                 let node_addr = parse_node_addr(&addr)?;
+                
+                log::info!("🔗 Connecting to NodeAddr: {:?}", node_addr);
+                log::info!("   - NodeId: {}", node_addr.node_id);
+                log::info!("   - Relay: {:?}", node_addr.relay_url);
+                log::info!("   - Direct addresses: {:?}", node_addr.direct_addresses);
                 
                 let connection = endpoint.connect(node_addr, RSOCKET_ALPN)
                     .await

@@ -1,6 +1,6 @@
 use rsocket_rust::prelude::*;
 use rsocket_rust::utils::EchoRSocket;
-use rsocket_rust_transport_iroh::{P2PClientTransport, P2PServerTransport};
+use rsocket_rust_transport_iroh::{IrohClientTransport, IrohServerTransport};
 use std::time::Duration;
 use tokio::time::timeout;
 use futures::StreamExt;
@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Starting Iroh P2P All RSocket Patterns Test...");
     
     println!("📡 Starting Iroh P2P server...");
-    let mut server_transport = P2PServerTransport::default();
+    let mut server_transport = IrohServerTransport::default();
     server_transport.start().await?;
     
     let server_task = tokio::spawn(async move {

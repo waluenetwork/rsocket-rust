@@ -24,18 +24,8 @@ async def main():
     def on_start():
         print("🎉 Multi-Transport Echo Server Started!")
         print("📋 Ready to accept connections")
-        
-        try:
-            node_id = iroh_transport.node_id()
-            if node_id:
-                print(f"🔗 Iroh P2P Node ID: {node_id}")
-                print(f"📝 Clients can connect using this Node ID")
-            else:
-                print("⚠️  Iroh Node ID not yet available (server may still be starting)")
-                print("💡 Node ID will be displayed once Iroh transport is fully initialized")
-        except Exception as e:
-            print(f"⚠️  Could not get Iroh Node ID: {e}")
-        
+        print("🔗 Iroh P2P transport is running")
+        print("💡 Node ID will be available once a client connects or through logs")
         print("🔄 Use Ctrl+C to stop the server")
     
     server = (rsocket_rust.MultiTransportServerBuilder()

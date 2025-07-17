@@ -272,14 +272,8 @@ impl PyIrohServerTransport {
 }
 
 impl PyIrohServerTransport {
-    pub fn to_rust(mut self) -> IrohServerTransport {
-        let config = self.config.take().unwrap_or_default();
-        let transport = IrohServerTransport::from(config);
-        
-        if let Some(node_id) = transport.node_id() {
-            self.node_id = Some(node_id);
-        }
-        
-        transport
+    pub fn to_rust(self) -> IrohServerTransport {
+        let config = self.config.unwrap_or_default();
+        IrohServerTransport::from(config)
     }
 }

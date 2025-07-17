@@ -1,4 +1,5 @@
 use iroh::{Endpoint, NodeAddr, NodeId, SecretKey};
+use iroh_base::ticket::NodeTicket;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use rsocket_rust::error::RSocketError;

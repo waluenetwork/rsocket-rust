@@ -1,4 +1,4 @@
-use iroh::{Endpoint, NodeAddr, NodeId};
+use iroh::{Endpoint, NodeAddr, NodeId, SecretKey};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use rsocket_rust::error::RSocketError;
@@ -10,6 +10,7 @@ pub struct IrohConfig {
     pub node_id: Option<NodeId>,
     pub relay_url: Option<String>,
     pub bind_port: Option<u16>,
+    pub private_key: Option<String>,
 }
 
 impl Default for IrohConfig {
@@ -18,12 +19,24 @@ impl Default for IrohConfig {
             node_id: None,
             relay_url: None,
             bind_port: None,
+            private_key: None,
         }
     }
 }
 
 pub async fn create_iroh_endpoint(config: &IrohConfig) -> std::result::Result<Endpoint, Box<dyn std::error::Error>> {
     let mut builder = Endpoint::builder();
+    
+    if let Some(private_key_str) = &config.private_key {
+        let private_key_bytes = hex::decode(private_key_str)
+            .map_err(|e| format!("Invalid private key hex: {}", e))?;
+        let secret_key = SecretKey::from_bytes(&private_key_bytes)
+            .map_err(|e| format!("Invalid private key: {}", e))?;
+        builder = builder.secret_key(secret_key);
+        log::info!("Using provided private key for Iroh endpoint");
+    } else {
+        log::info!("No private key provided, Iroh will generate one automatically");
+    }
     
     builder = builder.discovery_n0();
     

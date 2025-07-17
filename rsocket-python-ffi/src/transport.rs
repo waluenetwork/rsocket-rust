@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use pyo3_async_runtimes::tokio::future_into_py;
 use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport};
 use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
 use rsocket_rust_transport_quinn::{QuinnClientTransport, QuinnServerTransport};
@@ -227,13 +228,37 @@ impl PyIrohClientTransport {
 #[pyclass(name = "IrohServerTransport")]
 #[derive(Clone)]
 pub struct PyIrohServerTransport {
+    config: Option<rsocket_rust_transport_iroh::misc::IrohConfig>,
+    node_id: Option<String>,
 }
 
 #[pymethods]
 impl PyIrohServerTransport {
     #[new]
-    fn new() -> PyResult<Self> {
-        Ok(PyIrohServerTransport {})
+    fn new(private_key: Option<String>) -> PyResult<Self> {
+        let mut config = rsocket_rust_transport_iroh::misc::IrohConfig::default();
+        if let Some(key) = private_key {
+            config.private_key = Some(key);
+        }
+        Ok(PyIrohServerTransport {
+            config: Some(config),
+            node_id: None,
+        })
+    }
+
+    fn node_id(&self) -> Option<String> {
+        self.node_id.clone()
+    }
+
+    fn get_node_id_after_start<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let config = self.config.clone().unwrap_or_default();
+        future_into_py(py, async move {
+            let mut server_transport = IrohServerTransport::from(config);
+            server_transport.start().await
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to start transport: {}", e)))?;
+            
+            Ok(server_transport.node_id())
+        })
     }
 
     fn __str__(&self) -> String {
@@ -246,7 +271,14 @@ impl PyIrohServerTransport {
 }
 
 impl PyIrohServerTransport {
-    pub fn to_rust(self) -> IrohServerTransport {
-        IrohServerTransport::default()
+    pub fn to_rust(mut self) -> IrohServerTransport {
+        let config = self.config.take().unwrap_or_default();
+        let transport = IrohServerTransport::from(config);
+        
+        if let Some(node_id) = transport.node_id() {
+            self.node_id = Some(node_id);
+        }
+        
+        transport
     }
 }

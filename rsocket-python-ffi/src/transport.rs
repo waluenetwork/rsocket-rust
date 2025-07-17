@@ -4,6 +4,7 @@ use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport};
 use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
 use rsocket_rust_transport_quinn::{QuinnClientTransport, QuinnServerTransport};
 use rsocket_rust_transport_iroh::{IrohClientTransport, IrohServerTransport};
+use rsocket_rust::prelude::ServerTransport;
 use std::net::SocketAddr;
 
 #[pyclass(name = "TcpClientTransport")]
@@ -228,7 +229,7 @@ impl PyIrohClientTransport {
 #[pyclass(name = "IrohServerTransport")]
 #[derive(Clone)]
 pub struct PyIrohServerTransport {
-    config: Option<rsocket_rust_transport_iroh::misc::IrohConfig>,
+    config: Option<rsocket_rust_transport_iroh::IrohConfig>,
     node_id: Option<String>,
 }
 
@@ -236,7 +237,7 @@ pub struct PyIrohServerTransport {
 impl PyIrohServerTransport {
     #[new]
     fn new(private_key: Option<String>) -> PyResult<Self> {
-        let mut config = rsocket_rust_transport_iroh::misc::IrohConfig::default();
+        let mut config = rsocket_rust_transport_iroh::IrohConfig::default();
         if let Some(key) = private_key {
             config.private_key = Some(key);
         }

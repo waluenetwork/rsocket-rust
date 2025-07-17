@@ -30,8 +30,14 @@ pub async fn create_iroh_endpoint(config: &IrohConfig) -> std::result::Result<En
     if let Some(private_key_str) = &config.private_key {
         let private_key_bytes = hex::decode(private_key_str)
             .map_err(|e| format!("Invalid private key hex: {}", e))?;
-        let secret_key = SecretKey::from_bytes(&private_key_bytes)
-            .map_err(|e| format!("Invalid private key: {}", e))?;
+        
+        if private_key_bytes.len() != 32 {
+            return Err(format!("Private key must be exactly 32 bytes (64 hex characters), got {} bytes", private_key_bytes.len()).into());
+        }
+        
+        let mut key_array = [0u8; 32];
+        key_array.copy_from_slice(&private_key_bytes);
+        let secret_key = SecretKey::from_bytes(&key_array);
         builder = builder.secret_key(secret_key);
         log::info!("Using provided private key for Iroh endpoint");
     } else {

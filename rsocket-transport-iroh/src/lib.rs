@@ -4,7 +4,7 @@ extern crate log;
 
 mod client;
 mod connection;
-mod misc;
+pub mod misc;
 mod server;
 
 pub use client::IrohClientTransport;

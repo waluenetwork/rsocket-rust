@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use std::sync::Once;
 
 mod payload;
 mod client;
@@ -12,8 +13,20 @@ use server::PyMultiTransportServerBuilder;
 use transport::*;
 use factory::PyRSocketFactory;
 
+static INIT: Once = Once::new();
+
+fn init_logger() {
+    INIT.call_once(|| {
+        env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .format_timestamp_millis()
+            .init();
+    });
+}
+
 #[pymodule]
 fn rsocket_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    init_logger();
     m.add_class::<PyPayload>()?;
     m.add_class::<PyPayloadBuilder>()?;
     m.add_class::<PyClient>()?;

@@ -16,9 +16,9 @@ async def main():
     print("🚀 Starting Multi-Transport RSocket Echo Server")
     print("📡 Supporting: TCP, WebSocket, QUIC, and Iroh P2P")
     
-    tcp_transport = rsocket_rust.TcpServerTransport("127.0.0.1:7878")
-    ws_transport = rsocket_rust.WebSocketServerTransport("127.0.0.1:7879")
-    quic_transport = rsocket_rust.QuinnServerTransport("127.0.0.1:7880")
+    tcp_transport = rsocket_rust.TcpServerTransport("0.0.0.0:7878")
+    ws_transport  = rsocket_rust.WebSocketServerTransport("0.0.0.0:7879")
+    quic_transport = rsocket_rust.QuinnServerTransport("0.0.0.0:7880")
     iroh_transport = rsocket_rust.IrohServerTransport()
     
     def on_start():

@@ -1,4 +1,5 @@
-use iroh::protocol::{ProtocolHandler, Router};
+use iroh::protocol::{ProtocolHandler, Router, AcceptError};
+use iroh::Watcher;
 use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
 use futures::channel::mpsc;
@@ -33,36 +34,45 @@ impl IrohServerTransport {
             let endpoint = router.endpoint();
             
             log::info!("Waiting for endpoint to discover direct addresses...");
-            match endpoint.direct_addresses().initialized().await {
-                Ok(direct_addrs) => {
-                    log::info!("Direct addresses discovered: {:?}", direct_addrs);
-                }
-                Err(e) => {
-                    log::warn!("Failed to get direct addresses: {:?}", e);
-                }
+            if let Err(e) = endpoint.direct_addresses().initialized().await {
+                log::warn!("Failed to get direct addresses: {:?}", e);
             }
             
             log::info!("Waiting for home relay connection...");
-            match endpoint.home_relay().initialized().await {
-                Ok(relay_url) => {
-                    log::info!("Home relay established: {:?}", relay_url);
-                }
-                Err(e) => {
-                    log::warn!("Failed to establish home relay: {:?}", e);
-                }
+            if let Err(e) = endpoint.home_relay().initialized().await {
+                log::warn!("Failed to establish home relay: {:?}", e);
             }
             
-            match endpoint.node_addr().await {
+            match endpoint.node_addr().initialized().await {
                 Ok(node_addr) => {
-                    log::info!("NodeAddr created with relay: {:?}, direct_addresses: {:?}", 
-                              node_addr.relay_url, node_addr.direct_addresses);
+                    log::info!("Complete NodeAddr created - NodeId: {}, Relay: {:?}, Direct addresses: {:?}", 
+                              node_addr.node_id, node_addr.relay_url, node_addr.direct_addresses);
                     Some(node_addr)
                 },
                 Err(e) => {
-                    log::error!("Failed to get node address: {:?}", e);
+                    log::error!("Failed to get initialized node address: {:?}", e);
                     None
                 }
             }
+        } else {
+            None
+        }
+    }
+
+    pub async fn node_addr_string(&self) -> Option<String> {
+        if let Some(node_addr) = self.node_addr().await {
+            let mut addr_parts = vec![format!("NodeId: {}", node_addr.node_id)];
+            
+            if let Some(ref relay_url) = node_addr.relay_url {
+                addr_parts.push(format!("Relay: {}", relay_url));
+            }
+            
+            if !node_addr.direct_addresses.is_empty() {
+                let direct_addrs: Vec<String> = node_addr.direct_addresses.iter().map(|addr| addr.to_string()).collect();
+                addr_parts.push(format!("Direct: [{}]", direct_addrs.join(", ")));
+            }
+            
+            Some(addr_parts.join(" | "))
         } else {
             None
         }
@@ -75,10 +85,11 @@ struct RSocketProtocolHandler {
 }
 
 impl ProtocolHandler for RSocketProtocolHandler {
-    fn accept(&self, connection: iroh::endpoint::Connection) -> BoxFuture<'static, anyhow::Result<()>> {
+    fn accept(&self, connection: iroh::endpoint::Connection) -> BoxFuture<'static, std::result::Result<(), AcceptError>> {
         let sender = self.connection_sender.clone();
         Box::pin(async move {
-            sender.unbounded_send(connection).map_err(|e| anyhow::anyhow!("Failed to send connection: {}", e))?;
+            sender.unbounded_send(connection)
+                .map_err(|e| AcceptError::from_err(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to send connection: {}", e))))?;
             Ok(())
         })
     }
@@ -101,9 +112,7 @@ impl ServerTransport for IrohServerTransport {
         
         let router = Router::builder(endpoint)
             .accept(RSOCKET_ALPN, protocol_handler)
-            .spawn()
-            .await
-            .map_err(|e| RSocketError::Other(anyhow::anyhow!("Failed to start router: {}", e).into()))?;
+            .spawn();
         
         log::info!("Iroh P2P server started with NodeId: {}", router.endpoint().node_id());
         log::info!("Server listening for P2P connections...");

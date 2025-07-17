@@ -6,12 +6,14 @@ mod client;
 mod server;
 mod transport;
 mod factory;
+mod py_rsocket;
 
 use payload::{PyPayload, PyPayloadBuilder};
 use client::PyClient;
 use server::PyMultiTransportServerBuilder;
 use transport::*;
 use factory::PyRSocketFactory;
+use py_rsocket::PyRSocketHandler;
 
 static INIT: Once = Once::new();
 
@@ -32,6 +34,7 @@ fn rsocket_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyClient>()?;
     m.add_class::<PyMultiTransportServerBuilder>()?;
     m.add_class::<PyRSocketFactory>()?;
+    m.add_class::<PyRSocketHandler>()?;
     
     m.add_class::<PyTcpClientTransport>()?;
     m.add_class::<PyTcpServerTransport>()?;

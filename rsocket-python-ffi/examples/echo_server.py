@@ -24,6 +24,8 @@ async def main():
     def on_start():
         print("🎉 Multi-Transport Echo Server Started!")
         print("📋 Ready to accept connections")
+        print("🔗 Iroh P2P transport is running")
+        print("💡 Node ID will be available once a client connects or through logs")
         print("🔄 Use Ctrl+C to stop the server")
     
     server = (rsocket_rust.MultiTransportServerBuilder()

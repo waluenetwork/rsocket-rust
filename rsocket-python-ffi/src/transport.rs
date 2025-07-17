@@ -227,13 +227,26 @@ impl PyIrohClientTransport {
 #[pyclass(name = "IrohServerTransport")]
 #[derive(Clone)]
 pub struct PyIrohServerTransport {
+    config: Option<rsocket_rust_transport_iroh::IrohConfig>,
+    node_id: Option<String>,
 }
 
 #[pymethods]
 impl PyIrohServerTransport {
     #[new]
-    fn new() -> PyResult<Self> {
-        Ok(PyIrohServerTransport {})
+    fn new(private_key: Option<String>) -> PyResult<Self> {
+        let mut config = rsocket_rust_transport_iroh::IrohConfig::default();
+        if let Some(key) = private_key {
+            config.private_key = Some(key);
+        }
+        Ok(PyIrohServerTransport {
+            config: Some(config),
+            node_id: None,
+        })
+    }
+
+    fn node_id(&self) -> Option<String> {
+        self.node_id.clone()
     }
 
     fn __str__(&self) -> String {
@@ -246,7 +259,12 @@ impl PyIrohServerTransport {
 }
 
 impl PyIrohServerTransport {
-    pub fn to_rust(self) -> IrohServerTransport {
-        IrohServerTransport::default()
+    pub fn to_rust(mut self) -> IrohServerTransport {
+        let config = self.config.take().unwrap_or_default();
+        IrohServerTransport::from(config)
+    }
+    
+    pub fn update_node_id(&mut self, node_id: String) {
+        self.node_id = Some(node_id);
     }
 }

@@ -1,10 +1,8 @@
 use pyo3::prelude::*;
-use pyo3_async_runtimes::tokio::future_into_py;
 use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport};
 use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
 use rsocket_rust_transport_quinn::{QuinnClientTransport, QuinnServerTransport};
 use rsocket_rust_transport_iroh::{IrohClientTransport, IrohServerTransport};
-use rsocket_rust::prelude::ServerTransport;
 use std::net::SocketAddr;
 
 #[pyclass(name = "TcpClientTransport")]
@@ -251,17 +249,6 @@ impl PyIrohServerTransport {
         self.node_id.clone()
     }
 
-    fn get_node_id_after_start<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let config = self.config.clone().unwrap_or_default();
-        future_into_py(py, async move {
-            let mut server_transport = IrohServerTransport::from(config);
-            server_transport.start().await
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to start transport: {}", e)))?;
-            
-            Ok(server_transport.node_id())
-        })
-    }
-
     fn __str__(&self) -> String {
         "IrohServerTransport".to_string()
     }
@@ -272,8 +259,12 @@ impl PyIrohServerTransport {
 }
 
 impl PyIrohServerTransport {
-    pub fn to_rust(self) -> IrohServerTransport {
-        let config = self.config.unwrap_or_default();
+    pub fn to_rust(mut self) -> IrohServerTransport {
+        let config = self.config.take().unwrap_or_default();
         IrohServerTransport::from(config)
+    }
+    
+    pub fn update_node_id(&mut self, node_id: String) {
+        self.node_id = Some(node_id);
     }
 }

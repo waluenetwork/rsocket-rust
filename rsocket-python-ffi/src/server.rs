@@ -49,7 +49,8 @@ impl PyMultiTransportServerBuilder {
 
     fn add_iroh_transport(mut self_: PyRefMut<Self>, name: String, transport: PyIrohServerTransport) -> PyResult<PyRefMut<Self>> {
         if let Some(builder) = self_.inner.take() {
-            self_.inner = Some(builder.add_transport(name, transport.to_rust()));
+            let rust_transport = transport.to_rust();
+            self_.inner = Some(builder.add_transport(name, rust_transport));
             Ok(self_)
         } else {
             Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Builder already consumed"))

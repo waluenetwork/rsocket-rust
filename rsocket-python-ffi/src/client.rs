@@ -62,6 +62,38 @@ impl PyClient {
         })
     }
 
+    fn request_stream_with_callback<'py>(&self, py: Python<'py>, payload: PyPayload, callback: PyObject) -> PyResult<Bound<'py, PyAny>> {
+        let client = self.inner.clone();
+        let rust_payload = payload.to_rust();
+        
+        future_into_py(py, async move {
+            let mut stream = client.request_stream(rust_payload);
+            let mut item_count = 0;
+            
+            while let Some(item) = stream.next().await {
+                match item {
+                    Ok(payload) => {
+                        item_count += 1;
+                        let py_payload = PyPayload::from_rust(payload);
+                        
+                        let callback_result = Python::with_gil(|py| {
+                            callback.call1(py, (py_payload, item_count))
+                        });
+                        
+                        if let Err(e) = callback_result {
+                            return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Callback error: {}", e)));
+                        }
+                        
+                        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+                    },
+                    Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Stream error: {}", e))),
+                }
+            }
+            
+            Ok(item_count)
+        })
+    }
+
     fn request_channel<'py>(&self, py: Python<'py>, payloads: Vec<PyPayload>) -> PyResult<Bound<'py, PyAny>> {
         let client = self.inner.clone();
         let rust_payloads: Vec<_> = payloads.into_iter().map(|p| p.to_rust()).collect();

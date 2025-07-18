@@ -135,6 +135,62 @@ impl PyClient {
         })
     }
 
+    fn request_channel_with_callback<'py>(&self, py: Python<'py>, input_payloads: Vec<PyPayload>, on_response: PyObject, on_complete: Option<PyObject>) -> PyResult<Bound<'py, PyAny>> {
+        let client = self.inner.clone();
+        let rust_payloads: Vec<_> = input_payloads.into_iter().map(|p| p.to_rust()).collect();
+        
+        future_into_py(py, async move {
+            let input_stream = futures::stream::iter(rust_payloads.into_iter().map(Ok));
+            let mut response_stream = client.request_channel(Box::pin(input_stream));
+            let mut response_count = 0;
+            let mut channel_error: Option<String> = None;
+            
+            while let Some(item) = response_stream.next().await {
+                match item {
+                    Ok(payload) => {
+                        response_count += 1;
+                        let py_payload = PyPayload::from_rust(payload);
+                        
+                        let callback_result = Python::with_gil(|py| {
+                            on_response.call1(py, (py_payload, response_count))
+                        });
+                        
+                        if let Err(e) = callback_result {
+                            channel_error = Some(format!("Response callback error: {}", e));
+                            break;
+                        }
+                        
+                        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+                    },
+                    Err(e) => {
+                        channel_error = Some(format!("Channel error: {}", e));
+                        break;
+                    }
+                }
+            }
+            
+            if let Some(on_complete_callback) = on_complete {
+                let completion_result = Python::with_gil(|py| {
+                    if let Some(ref error) = channel_error {
+                        on_complete_callback.call1(py, (response_count, py.None(), error.clone()))
+                    } else {
+                        on_complete_callback.call1(py, (response_count, true, py.None()))
+                    }
+                });
+                
+                if let Err(e) = completion_result {
+                    return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Completion callback error: {}", e)));
+                }
+            }
+            
+            if let Some(error) = channel_error {
+                return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(error));
+            }
+            
+            Ok(response_count)
+        })
+    }
+
     fn __str__(&self) -> String {
         "RSocket Client".to_string()
     }

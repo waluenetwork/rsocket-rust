@@ -62,13 +62,14 @@ impl PyClient {
         })
     }
 
-    fn request_stream_with_callback<'py>(&self, py: Python<'py>, payload: PyPayload, callback: PyObject) -> PyResult<Bound<'py, PyAny>> {
+    fn request_stream_with_callback<'py>(&self, py: Python<'py>, payload: PyPayload, on_next: PyObject, on_complete: Option<PyObject>) -> PyResult<Bound<'py, PyAny>> {
         let client = self.inner.clone();
         let rust_payload = payload.to_rust();
         
         future_into_py(py, async move {
             let mut stream = client.request_stream(rust_payload);
             let mut item_count = 0;
+            let mut stream_error: Option<String> = None;
             
             while let Some(item) = stream.next().await {
                 match item {
@@ -77,17 +78,39 @@ impl PyClient {
                         let py_payload = PyPayload::from_rust(payload);
                         
                         let callback_result = Python::with_gil(|py| {
-                            callback.call1(py, (py_payload, item_count))
+                            on_next.call1(py, (py_payload, item_count))
                         });
                         
                         if let Err(e) = callback_result {
-                            return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Callback error: {}", e)));
+                            stream_error = Some(format!("Callback error: {}", e));
+                            break;
                         }
                         
                         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                     },
-                    Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Stream error: {}", e))),
+                    Err(e) => {
+                        stream_error = Some(format!("Stream error: {}", e));
+                        break;
+                    }
                 }
+            }
+            
+            if let Some(on_complete_callback) = on_complete {
+                let completion_result = Python::with_gil(|py| {
+                    if let Some(ref error) = stream_error {
+                        on_complete_callback.call1(py, (item_count, py.None(), error.clone()))
+                    } else {
+                        on_complete_callback.call1(py, (item_count, true, py.None()))
+                    }
+                });
+                
+                if let Err(e) = completion_result {
+                    return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Completion callback error: {}", e)));
+                }
+            }
+            
+            if let Some(error) = stream_error {
+                return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(error));
             }
             
             Ok(item_count)

@@ -12,6 +12,8 @@ class StreamObserver:
     def __init__(self):
         self.items_received = []
         self.start_time = time.time()
+        self.completed = False
+        self.completion_error = None
     
     def on_next(self, payload, index):
         """Callback function called for each stream item"""
@@ -26,6 +28,20 @@ class StreamObserver:
         })
         
         time.sleep(0.01)
+    
+    def on_complete(self, total_items, success, error):
+        """Callback function called when stream completes"""
+        current_time = time.time()
+        elapsed = (current_time - self.start_time) * 1000
+        
+        self.completed = True
+        if success:
+            print(f"✅ Stream completed successfully at {elapsed:.1f}ms")
+            print(f"   Total items processed: {total_items}")
+        else:
+            self.completion_error = error
+            print(f"❌ Stream completed with error at {elapsed:.1f}ms: {error}")
+            print(f"   Items processed before error: {total_items}")
 
 async def test_callback_streaming():
     """Test callback-based reactive streaming"""
@@ -49,7 +65,7 @@ async def test_callback_streaming():
         
         start_time = time.time()
         
-        total_items = await client.request_stream_with_callback(payload, observer.on_next)
+        total_items = await client.request_stream_with_callback(payload, observer.on_next, observer.on_complete)
         
         end_time = time.time()
         total_time = end_time - start_time
@@ -69,6 +85,9 @@ async def test_callback_streaming():
             
         print("\n✅ Callback-based streaming demonstrates true reactivity!")
         print("   Each item was processed individually as it arrived")
+        print(f"   Stream completion callback called: {observer.completed}")
+        if observer.completion_error:
+            print(f"   Completion error: {observer.completion_error}")
             
     except Exception as e:
         print(f"❌ Test error: {e}")

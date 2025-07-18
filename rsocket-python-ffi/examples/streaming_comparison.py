@@ -13,12 +13,22 @@ class CallbackObserver:
         self.name = name
         self.items = []
         self.start_time = time.time()
+        self.completed = False
     
     def on_next(self, payload, index):
         current_time = time.time()
         elapsed = (current_time - self.start_time) * 1000
         print(f"  📥 [{self.name}] Item {index} at {elapsed:.1f}ms: {payload.data_utf8()}")
         self.items.append({'index': index, 'timestamp': current_time})
+    
+    def on_complete(self, total_items, success, error):
+        current_time = time.time()
+        elapsed = (current_time - self.start_time) * 1000
+        self.completed = True
+        if success:
+            print(f"  ✅ [{self.name}] Stream completed at {elapsed:.1f}ms ({total_items} items)")
+        else:
+            print(f"  ❌ [{self.name}] Stream failed at {elapsed:.1f}ms: {error}")
 
 async def test_streaming_comparison():
     """Compare batch vs callback streaming approaches"""
@@ -54,7 +64,7 @@ async def test_streaming_comparison():
         observer = CallbackObserver("Callback")
         
         start_time = time.time()
-        total_items = await client.request_stream_with_callback(payload, observer.on_next)
+        total_items = await client.request_stream_with_callback(payload, observer.on_next, observer.on_complete)
         end_time = time.time()
         
         print(f"📥 Processed {total_items} items via callbacks")
@@ -76,6 +86,8 @@ async def test_streaming_comparison():
         print("  ✅ Constant memory usage")
         print("  ✅ Supports backpressure")
         print("  ✅ Observable timing between items")
+        print("  ✅ Completion callbacks (on_complete event)")
+        print(f"  ✅ Stream completion detected: {observer.completed}")
             
     except Exception as e:
         print(f"❌ Comparison error: {e}")

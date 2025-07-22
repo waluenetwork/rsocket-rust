@@ -29,48 +29,43 @@ class ReactiveChannelProcessor:
     def process_channel_request(self, input_payloads):
         """
         Main channel handler that processes incoming payload list
-        and returns a generator for reactive response streaming.
+        and returns a list of response payloads.
         
         Args:
             input_payloads: List of Payload objects from client
             
         Returns:
-            Generator that yields response Payload objects progressively
+            List of response Payload objects
         """
         print(f"🔄 [{self.name}] Processing channel request with {len(input_payloads)} inputs")
         
-        def response_generator():
-            """
-            Generator function that yields responses progressively.
-            This demonstrates true reactive streaming on the server side.
-            """
-            for i, input_payload in enumerate(input_payloads):
-                self.processed_count += 1
-                
-                input_data = input_payload.data_utf8() if input_payload.data_utf8() else f"No data {i+1}"
-                input_metadata = input_payload.metadata_utf8() if input_payload.metadata_utf8() else "no-metadata"
-                
-                current_time = time.time()
-                elapsed = (current_time - self.start_time) * 1000
-                
-                print(f"  📤 [{self.name}] Generating response {i+1}/{len(input_payloads)} at {elapsed:.1f}ms")
-                print(f"      Input: {input_data}")
-                
-                response_data = f"Processed: {input_data} | Server time: {current_time:.3f}"
-                response_metadata = f"response-{i+1}|{input_metadata}"
-                
-                response = (rsocket_rust.Payload.builder()
-                           .set_data_utf8(response_data)
-                           .set_metadata_utf8(response_metadata)
-                           .build())
-                
-                yield response
-                
-                time.sleep(0.1)
+        responses = []
+        for i, input_payload in enumerate(input_payloads):
+            self.processed_count += 1
             
-            print(f"✅ [{self.name}] Completed processing {len(input_payloads)} channel inputs")
+            input_data = input_payload.data_utf8() if input_payload.data_utf8() else f"No data {i+1}"
+            input_metadata = input_payload.metadata_utf8() if input_payload.metadata_utf8() else "no-metadata"
+            
+            current_time = time.time()
+            elapsed = (current_time - self.start_time) * 1000
+            
+            print(f"  📤 [{self.name}] Processing input {i+1}/{len(input_payloads)} at {elapsed:.1f}ms")
+            print(f"      Input: {input_data}")
+            
+            response_data = f"Processed: {input_data} | Server time: {current_time:.3f}"
+            response_metadata = f"response-{i+1}|{input_metadata}"
+            
+            response = (rsocket_rust.Payload.builder()
+                       .set_data_utf8(response_data)
+                       .set_metadata_utf8(response_metadata)
+                       .build())
+            
+            responses.append(response)
+            
+            time.sleep(0.05)
         
-        return response_generator()
+        print(f"✅ [{self.name}] Completed processing {len(input_payloads)} channel inputs")
+        return responses
 
 def create_reactive_channel_handler():
     """
@@ -123,7 +118,7 @@ def create_reactive_channel_handler():
     def handle_request_channel(input_payloads):
         """
         Main reactive channel handler - processes incoming payload list
-        and returns generator for progressive response streaming.
+        and returns list of response payloads.
         
         This is the core functionality demonstrating reactive channel processing.
         """

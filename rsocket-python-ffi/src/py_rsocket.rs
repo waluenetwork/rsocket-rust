@@ -305,40 +305,252 @@ impl RSocket for PyRSocket {
     fn request_channel(&self, mut reqs: Pin<Box<dyn Send + Stream<Item = Result<Payload>>>>) -> Pin<Box<dyn Send + Stream<Item = Result<Payload>>>> {
         if let Some(ref handler) = self.handler.request_channel_handler {
             let handler_clone = Python::with_gil(|py| handler.clone_ref(py));
+            let handler_clone_for_batch = Python::with_gil(|py| handler.clone_ref(py));
+            
             Box::pin(stream! {
-                let mut payloads = Vec::new();
+                let mut first_payload_opt: Option<Payload> = None;
+                let mut handler_type: Option<bool> = None;
+                
                 while let Some(item) = reqs.next().await {
                     match item {
-                        Ok(payload) => payloads.push(payload),
+                        Ok(payload) => {
+                            if handler_type.is_none() {
+                                first_payload_opt = Some(payload.clone());
+                                
+                                let test_result = tokio::task::spawn_blocking({
+                                    let handler_clone = Python::with_gil(|py| handler_clone.clone_ref(py));
+                                    let test_payload = payload.clone();
+                                    move || {
+                                        Python::with_gil(|py| {
+                                            let py_payload = PyPayload::from_rust(test_payload);
+                                            let result = handler_clone.call1(py, (py_payload,));
+                                            
+                                            match result {
+                                                Ok(py_result) => {
+                                                    if py_result.bind(py).hasattr("__next__").unwrap_or(false) && 
+                                                       py_result.bind(py).hasattr("__iter__").unwrap_or(false) {
+                                                        Ok(Some(py_result.clone_ref(py)))
+                                                    } else {
+                                                        Ok(None)
+                                                    }
+                                                },
+                                                Err(e) => Err(anyhow::anyhow!("Python handler error: {}", e))
+                                            }
+                                        })
+                                    }
+                                }).await;
+                                
+                                match test_result {
+                                    Ok(Ok(Some(py_generator))) => {
+                                        handler_type = Some(true);
+                                        
+                                        let mut iteration_count = 0;
+                                        loop {
+                                            let next_item = tokio::task::spawn_blocking({
+                                                let py_generator = Python::with_gil(|py| py_generator.clone_ref(py));
+                                                move || {
+                                                    Python::with_gil(|py| {
+                                                        match py_generator.call_method0(py, "__next__") {
+                                                            Ok(item) => {
+                                                                match item.extract::<PyPayload>(py) {
+                                                                    Ok(payload) => Ok(Some(payload)),
+                                                                    Err(_) => Err(anyhow::anyhow!("Generator item must be Payload"))
+                                                                }
+                                                            },
+                                                            Err(e) => {
+                                                                if e.is_instance_of::<pyo3::exceptions::PyStopIteration>(py) {
+                                                                    Ok(None)
+                                                                } else {
+                                                                    Err(anyhow::anyhow!("Generator error: {}", e))
+                                                                }
+                                                            }
+                                                        }
+                                                    })
+                                                }
+                                            }).await;
+
+                                            match next_item {
+                                                Ok(Ok(Some(py_payload))) => {
+                                                    yield Ok(py_payload.to_rust());
+                                                    iteration_count += 1;
+                                                    tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+                                                },
+                                                Ok(Ok(None)) => break,
+                                                Ok(Err(e)) => {
+                                                    yield Err(e);
+                                                    return;
+                                                },
+                                                Err(e) => {
+                                                    yield Err(anyhow::anyhow!("Task join error: {}", e));
+                                                    return;
+                                                }
+                                            }
+                                            
+                                            if iteration_count > 10000 {
+                                                yield Err(anyhow::anyhow!("Stream iteration limit exceeded"));
+                                                return;
+                                            }
+                                        }
+                                        
+                                        while let Some(next_item) = reqs.next().await {
+                                            match next_item {
+                                                Ok(next_payload) => {
+                                                    let generator_result = tokio::task::spawn_blocking({
+                                                        let handler_clone = Python::with_gil(|py| handler_clone.clone_ref(py));
+                                                        move || {
+                                                            Python::with_gil(|py| {
+                                                                let py_payload = PyPayload::from_rust(next_payload);
+                                                                let result = handler_clone.call1(py, (py_payload,));
+                                                                
+                                                                match result {
+                                                                    Ok(py_result) => {
+                                                                        if py_result.bind(py).hasattr("__next__").unwrap_or(false) && 
+                                                                           py_result.bind(py).hasattr("__iter__").unwrap_or(false) {
+                                                                            Ok(Some(py_result.clone_ref(py)))
+                                                                        } else {
+                                                                            Err(anyhow::anyhow!("Handler must consistently return generator"))
+                                                                        }
+                                                                    },
+                                                                    Err(e) => Err(anyhow::anyhow!("Python handler error: {}", e))
+                                                                }
+                                                            })
+                                                        }
+                                                    }).await;
+                                                    
+                                                    match generator_result {
+                                                        Ok(Ok(Some(py_generator))) => {
+                                                            let mut iteration_count = 0;
+                                                            loop {
+                                                                let next_item = tokio::task::spawn_blocking({
+                                                                    let py_generator = Python::with_gil(|py| py_generator.clone_ref(py));
+                                                                    move || {
+                                                                        Python::with_gil(|py| {
+                                                                            match py_generator.call_method0(py, "__next__") {
+                                                                                Ok(item) => {
+                                                                                    match item.extract::<PyPayload>(py) {
+                                                                                        Ok(payload) => Ok(Some(payload)),
+                                                                                        Err(_) => Err(anyhow::anyhow!("Generator item must be Payload"))
+                                                                                    }
+                                                                                },
+                                                                                Err(e) => {
+                                                                                    if e.is_instance_of::<pyo3::exceptions::PyStopIteration>(py) {
+                                                                                        Ok(None)
+                                                                                    } else {
+                                                                                        Err(anyhow::anyhow!("Generator error: {}", e))
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        })
+                                                                    }
+                                                                }).await;
+
+                                                                match next_item {
+                                                                    Ok(Ok(Some(py_payload))) => {
+                                                                        yield Ok(py_payload.to_rust());
+                                                                        iteration_count += 1;
+                                                                        tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+                                                                    },
+                                                                    Ok(Ok(None)) => break,
+                                                                    Ok(Err(e)) => {
+                                                                        yield Err(e);
+                                                                        return;
+                                                                    },
+                                                                    Err(e) => {
+                                                                        yield Err(anyhow::anyhow!("Task join error: {}", e));
+                                                                        return;
+                                                                    }
+                                                                }
+                                                                
+                                                                if iteration_count > 10000 {
+                                                                    yield Err(anyhow::anyhow!("Stream iteration limit exceeded"));
+                                                                    return;
+                                                                }
+                                                            }
+                                                        },
+                                                        Ok(Ok(None)) => {
+                                                            yield Err(anyhow::anyhow!("Handler must consistently return generator"));
+                                                            return;
+                                                        },
+                                                        Ok(Err(e)) => {
+                                                            yield Err(e);
+                                                            return;
+                                                        },
+                                                        Err(e) => {
+                                                            yield Err(anyhow::anyhow!("Task join error: {}", e));
+                                                            return;
+                                                        }
+                                                    }
+                                                },
+                                                Err(e) => {
+                                                    yield Err(e);
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                        return;
+                                    },
+                                    Ok(Ok(None)) => {
+                                        handler_type = Some(false);
+                                    },
+                                    Ok(Err(e)) => {
+                                        yield Err(e);
+                                        return;
+                                    },
+                                    Err(e) => {
+                                        yield Err(anyhow::anyhow!("Task join error: {}", e));
+                                        return;
+                                    }
+                                }
+                            }
+                            
+                            if handler_type == Some(false) {
+                                let mut payloads = Vec::new();
+                                if let Some(first_payload) = first_payload_opt.take() {
+                                    payloads.push(first_payload);
+                                }
+                                payloads.push(payload);
+                                
+                                while let Some(item) = reqs.next().await {
+                                    match item {
+                                        Ok(payload) => payloads.push(payload),
+                                        Err(e) => {
+                                            yield Err(e);
+                                            return;
+                                        }
+                                    }
+                                }
+
+                                let result = Python::with_gil(|py| {
+                                    let py_payloads: Vec<PyPayload> = payloads.into_iter().map(PyPayload::from_rust).collect();
+                                    let result = handler_clone_for_batch.call1(py, (py_payloads,));
+                                    match result {
+                                        Ok(py_result) => {
+                                            match py_result.extract::<Vec<PyPayload>>(py) {
+                                                Ok(payloads) => Ok(payloads),
+                                                Err(e) => Err(anyhow::anyhow!("Failed to extract payloads: {}", e))
+                                            }
+                                        },
+                                        Err(e) => Err(anyhow::anyhow!("Python handler error: {}", e))
+                                    }
+                                });
+
+                                match result {
+                                    Ok(py_results) => {
+                                        for py_payload in py_results {
+                                            yield Ok(py_payload.to_rust());
+                                        }
+                                    }
+                                    Err(e) => {
+                                        yield Err(e);
+                                    }
+                                }
+                                return;
+                            }
+                        },
                         Err(e) => {
                             yield Err(e);
                             return;
                         }
-                    }
-                }
-
-                let result = Python::with_gil(|py| {
-                    let py_payloads: Vec<PyPayload> = payloads.into_iter().map(PyPayload::from_rust).collect();
-                    let result = handler_clone.call1(py, (py_payloads,));
-                    match result {
-                        Ok(py_result) => {
-                            match py_result.extract::<Vec<PyPayload>>(py) {
-                                Ok(payloads) => Ok(payloads),
-                                Err(e) => Err(anyhow::anyhow!("Failed to extract payloads: {}", e))
-                            }
-                        },
-                        Err(e) => Err(anyhow::anyhow!("Python handler error: {}", e))
-                    }
-                });
-
-                match result {
-                    Ok(py_results) => {
-                        for py_payload in py_results {
-                            yield Ok(py_payload.to_rust());
-                        }
-                    }
-                    Err(e) => {
-                        yield Err(e);
                     }
                 }
             })

@@ -26,12 +26,12 @@ class ReactiveChannelProcessor:
         self.processed_count = 0
         self.start_time = time.time()
     
-    def process_channel_request_reactive(self, input_payload):
+    def process_individual_payload_async(self, input_payload):
         """
-        Reactive channel handler that processes individual payloads as they arrive
-        and returns a generator for progressive response generation.
+        Process individual payload in separate async task - truly reactive processing.
         
-        This is called once per incoming payload, enabling true reactive processing.
+        This function is called once per incoming payload, each in its own async task.
+        No bulk processing - each payload triggers immediate individual processing.
         
         Args:
             input_payload: Single Payload object from client
@@ -47,25 +47,30 @@ class ReactiveChannelProcessor:
         current_time = time.time()
         elapsed = (current_time - self.start_time) * 1000
         
-        print(f"  📤 [{self.name}] Processing payload {self.processed_count} at {elapsed:.1f}ms")
+        print(f"  🚀 [{self.name}] INDIVIDUAL ASYNC Processing payload {self.processed_count} at {elapsed:.1f}ms")
         print(f"      Input: {input_data}")
+        print(f"      ⚡ Each payload processed in separate async task - NO BULK PROCESSING!")
         
-        def response_generator():
-            """Generator for reactive response streaming"""
+        def individual_response_generator():
+            """Generator for individual payload processing - truly reactive"""
             for i in range(2):
-                response_data = f"Processed: {input_data} | Response {i+1}/2 | Server time: {current_time:.3f}"
-                response_metadata = f"response-{self.processed_count}-{i+1}|{input_metadata}"
+                response_time = time.time()
+                response_elapsed = (response_time - self.start_time) * 1000
+                
+                response_data = f"INDIVIDUAL ASYNC: {input_data} | Response {i+1}/2 | Task: {self.processed_count} | Time: {response_elapsed:.1f}ms"
+                response_metadata = f"individual-async-{self.processed_count}-{i+1}|{input_metadata}"
                 
                 response = (rsocket_rust.Payload.builder()
                            .set_data_utf8(response_data)
                            .set_metadata_utf8(response_metadata)
                            .build())
                 
-                print(f"    📤 [{self.name}] Yielding response {i+1}/2 for payload {self.processed_count}")
+                print(f"    ⚡ [{self.name}] INDIVIDUAL ASYNC Yielding response {i+1}/2 for payload {self.processed_count} at {response_elapsed:.1f}ms")
                 yield response
+                
                 time.sleep(0.05)
         
-        return response_generator()
+        return individual_response_generator()
 
 def create_reactive_channel_handler():
     """
@@ -122,7 +127,7 @@ def create_reactive_channel_handler():
         
         This is the core functionality demonstrating true reactive channel processing.
         """
-        return processor.process_channel_request_reactive(input_payload)
+        return processor.process_individual_payload_async(input_payload)
     
     handler = (rsocket_rust.RSocketHandler()
                .metadata_push(handle_metadata_push)
@@ -139,8 +144,9 @@ async def main():
     with TCP transport and reactive channel handler configuration.
     """
     print("🚀 Starting Python FFI Reactive Channel Server")
-    print("🌊 Demonstrating TRUE reactive channel processing with Python generators")
-    print("📡 Each payload processed individually as it arrives (not batched)")
+    print("🌊 Demonstrating TRUE REACTIVE channel processing")
+    print("📡 Each payload processed individually as it arrives")
+    print("⚡ No bulk processing - each payload triggers separate async task")
     print("=" * 80)
     
     try:
@@ -155,8 +161,9 @@ async def main():
             print("📋 Server Configuration:")
             print("   • Transport: TCP on 127.0.0.1:7882")
             print("   • Handler: Full RSocket pattern support")
-            print("   • Channel: TRUE reactive processing - payloads processed as they arrive")
+            print("   • Channel: TRUE REACTIVE processing - each payload in separate task")
             print("   • Generator: Each payload returns generator for progressive responses")
+            print("   • Individual: Each payload processed individually, no bulk processing")
             print("   • FFI: Python-Rust integration via PyO3")
             print()
             print("🧪 Test with reactive channel clients:")

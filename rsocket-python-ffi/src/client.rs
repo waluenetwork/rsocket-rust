@@ -368,33 +368,86 @@ impl PyClient {
     }
 
 
-    fn request_channel_async_generator(&self, input_generator: PyObject) -> PyResult<Vec<PyPayload>> {
+    fn request_channel_async_generator<'py>(&self, py: Python<'py>, input_generator: PyObject) -> PyResult<Bound<'py, PyAny>> {
         let client = self.inner.clone();
         
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
+        future_into_py(py, async move {
             let input_stream = stream! {
-                let items = Python::with_gil(|py| {
+                let (is_async_generator, is_generator) = Python::with_gil(|py| {
                     let bound_obj = input_generator.bind(py);
-                    let iter = bound_obj.iter()?;
-                    let mut payloads = Vec::new();
-                    for item in iter {
-                        let item = item?;
-                        let payload = item.extract::<PyPayload>()?;
-                        payloads.push(payload.to_rust());
-                    }
-                    Ok::<Vec<_>, PyErr>(payloads)
+                    let is_async_gen = bound_obj.hasattr("__anext__").unwrap_or(false);
+                    let is_gen = bound_obj.hasattr("__next__").unwrap_or(false);
+                    (is_async_gen, is_gen)
                 });
+                
+                if is_async_generator {
+                    yield Err(anyhow::anyhow!(
+                        "Async generators are not yet fully supported. Please convert your async generator to a list first: list(your_async_generator())"
+                    ));
+                } else if is_generator {
+                    loop {
+                        let next_item = tokio::task::spawn_blocking({
+                            let generator = Python::with_gil(|py| input_generator.clone_ref(py));
+                            move || {
+                                Python::with_gil(|py| {
+                                    match generator.call_method0(py, "__next__") {
+                                        Ok(item) => {
+                                            match item.extract::<PyPayload>(py) {
+                                                Ok(payload) => Ok(Some(payload.to_rust())),
+                                                Err(_) => Err(anyhow::anyhow!("Generator item must be Payload"))
+                                            }
+                                        },
+                                        Err(e) => {
+                                            if e.is_instance_of::<pyo3::exceptions::PyStopIteration>(py) {
+                                                Ok(None)
+                                            } else {
+                                                Err(anyhow::anyhow!("Generator error: {}", e))
+                                            }
+                                        }
+                                    }
+                                })
+                            }
+                        }).await;
 
-                match items {
-                    Ok(payloads) => {
-                        for payload in payloads {
-                            yield Ok(payload);
-                            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                        match next_item {
+                            Ok(Ok(Some(payload))) => {
+                                yield Ok(payload);
+                                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                            },
+                            Ok(Ok(None)) => break,
+                            Ok(Err(e)) => {
+                                yield Err(e);
+                                break;
+                            },
+                            Err(e) => {
+                                yield Err(anyhow::anyhow!("Task join error: {}", e));
+                                break;
+                            }
                         }
-                    },
-                    Err(e) => {
-                        yield Err(anyhow::anyhow!("Input processing error: {}", e));
+                    }
+                } else {
+                    let items = Python::with_gil(|py| {
+                        let bound_obj = input_generator.bind(py);
+                        let iter = bound_obj.iter()?;
+                        let mut payloads = Vec::new();
+                        for item in iter {
+                            let item = item?;
+                            let payload = item.extract::<PyPayload>()?;
+                            payloads.push(payload.to_rust());
+                        }
+                        Ok::<Vec<_>, PyErr>(payloads)
+                    });
+
+                    match items {
+                        Ok(payloads) => {
+                            for payload in payloads {
+                                yield Ok(payload);
+                                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                            }
+                        },
+                        Err(e) => {
+                            yield Err(anyhow::anyhow!("Input processing error: {}", e));
+                        }
                     }
                 }
             };
@@ -407,7 +460,7 @@ impl PyClient {
                     Ok(payload) => {
                         responses.push(PyPayload::from_rust(payload));
                     },
-                    Err(_) => break,
+                    Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Channel error: {}", e))),
                 }
             }
             

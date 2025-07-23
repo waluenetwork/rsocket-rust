@@ -33,7 +33,11 @@ async def test_async_generator():
         
         print(f"\n📥 Received {len(responses)} responses:")
         for i, response in enumerate(responses, 1):
-            print(f"  {i}. {response.data.decode('utf-8')}")
+            data = response.data_utf8()
+            if data:
+                print(f"  {i}. {data}")
+            else:
+                print(f"  {i}. [No data]")
         
         print("\n✅ Async generator method test completed successfully!")
         return True
@@ -71,7 +75,11 @@ async def test_with_async_generator():
         
         print(f"\n📥 Received {len(responses)} responses:")
         for i, response in enumerate(responses, 1):
-            print(f"  {i}. {response.data.decode('utf-8')}")
+            data = response.data_utf8()
+            if data:
+                print(f"  {i}. {data}")
+            else:
+                print(f"  {i}. [No data]")
         
         print("\n✅ Async generator test completed successfully!")
         return True

@@ -368,13 +368,13 @@ impl PyClient {
     }
 
 
-    fn request_channel_async_generator<'py>(&self, py: Python<'py>, input_async_generator: PyObject) -> PyResult<Bound<'py, PyAny>> {
+    fn request_channel_async_generator<'py>(&self, py: Python<'py>, input_generator: PyObject) -> PyResult<Bound<'py, PyAny>> {
         let client = self.inner.clone();
         
         future_into_py(py, async move {
             let input_stream = stream! {
                 let items = Python::with_gil(|py| {
-                    let bound_obj = input_async_generator.bind(py);
+                    let bound_obj = input_generator.bind(py);
                     let iter = bound_obj.iter()?;
                     let mut payloads = Vec::new();
                     for item in iter {

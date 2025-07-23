@@ -369,11 +369,50 @@ impl PyClient {
 
 
     fn request_channel_async_generator(&self, input_generator: PyObject) -> PyResult<Vec<PyPayload>> {
-        use rsocket_rust::prelude::Payload;
-        let test_payload = Payload::builder()
-            .set_data_utf8("test response")
-            .build();
-        Ok(vec![PyPayload::from_rust(test_payload)])
+        let client = self.inner.clone();
+        
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async move {
+            let input_stream = stream! {
+                let items = Python::with_gil(|py| {
+                    let bound_obj = input_generator.bind(py);
+                    let iter = bound_obj.iter()?;
+                    let mut payloads = Vec::new();
+                    for item in iter {
+                        let item = item?;
+                        let payload = item.extract::<PyPayload>()?;
+                        payloads.push(payload.to_rust());
+                    }
+                    Ok::<Vec<_>, PyErr>(payloads)
+                });
+
+                match items {
+                    Ok(payloads) => {
+                        for payload in payloads {
+                            yield Ok(payload);
+                            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                        }
+                    },
+                    Err(e) => {
+                        yield Err(anyhow::anyhow!("Input processing error: {}", e));
+                    }
+                }
+            };
+
+            let mut response_stream = client.request_channel(Box::pin(input_stream));
+            let mut responses = Vec::new();
+            
+            while let Some(item) = response_stream.next().await {
+                match item {
+                    Ok(payload) => {
+                        responses.push(PyPayload::from_rust(payload));
+                    },
+                    Err(_) => break,
+                }
+            }
+            
+            Ok(responses)
+        })
     }
 
     fn __str__(&self) -> String {

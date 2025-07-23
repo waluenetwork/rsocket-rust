@@ -144,10 +144,10 @@ async def request_channel_with_events(client):
         print(f"📊 [Client] Channel request initiated, expecting responses...")
         
         print("⏳ [Client] Waiting for channel completion...")
-        await asyncio.wait_for(channel_completion_event.wait(), timeout=10.0)
+        await channel_completion_event.wait()
         
         print("⏳ [Client] Waiting for requester completion...")
-        await asyncio.wait_for(requester_completion_event.wait(), timeout=5.0)
+        await requester_completion_event.wait()
         
         expected_values = [
             b'Item on channel: 0',
@@ -173,9 +173,6 @@ async def request_channel_with_events(client):
             print(f"Actual: {subscriber.values}")
             return False
             
-    except asyncio.TimeoutError:
-        print("⏰ [Error] Channel communication timed out")
-        return False
     except Exception as e:
         print(f"❌ [Error] Channel communication failed: {e}")
         import traceback

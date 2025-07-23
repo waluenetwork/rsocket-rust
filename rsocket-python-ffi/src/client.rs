@@ -367,6 +367,130 @@ impl PyClient {
         })
     }
 
+    fn request_channel_async_generator<'py>(&self, py: Python<'py>, input_async_generator: PyObject) -> PyResult<Bound<'py, PyAny>> {
+        let client = self.inner.clone();
+        
+        future_into_py(py, async move {
+            let is_async_generator = Python::with_gil(|py| {
+                input_async_generator.bind(py).hasattr("__anext__").unwrap_or(false) && 
+                input_async_generator.bind(py).hasattr("__aiter__").unwrap_or(false)
+            });
+            
+            if !is_async_generator {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Input must be an async generator"));
+            }
+            
+            let input_stream = stream! {
+                loop {
+                    let next_item = tokio::task::spawn_blocking({
+                        let async_gen = Python::with_gil(|py| input_async_generator.clone_ref(py));
+                        move || {
+                            Python::with_gil(|py| {
+                                match async_gen.call_method0(py, "__anext__") {
+                                    Ok(awaitable) => {
+                                        match awaitable.extract::<PyPayload>(py) {
+                                            Ok(payload) => Ok(Some(payload.to_rust())),
+                                            Err(_) => Err(anyhow::anyhow!("Async generator item must be Payload"))
+                                        }
+                                    },
+                                    Err(e) => {
+                                        if e.is_instance_of::<pyo3::exceptions::PyStopAsyncIteration>(py) {
+                                            Ok(None)
+                                        } else {
+                                            Err(anyhow::anyhow!("Async generator error: {}", e))
+                                        }
+                                    }
+                                }
+                            })
+                        }
+                    }).await;
+
+                    match next_item {
+                        Ok(Ok(Some(payload))) => {
+                            yield Ok(payload);
+                            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                        },
+                        Ok(Ok(None)) => break,
+                        Ok(Err(e)) => {
+                            yield Err(e);
+                            break;
+                        },
+                        Err(e) => {
+                            yield Err(anyhow::anyhow!("Task join error: {}", e));
+                            break;
+                        }
+                    }
+                }
+            };
+            
+            let mut response_stream = client.request_channel(Box::pin(input_stream));
+            
+            let py_async_generator = Python::with_gil(|py| {
+                let generator_code = py.eval_bound(r#"
+class AsyncResponseGenerator:
+    def __init__(self):
+        self._responses = []
+        self._completed = False
+        self._index = 0
+    
+    def __aiter__(self):
+        return self
+    
+    async def __anext__(self):
+        import asyncio
+        while self._index >= len(self._responses) and not self._completed:
+            await asyncio.sleep(0.01)
+        
+        if self._index >= len(self._responses) and self._completed:
+            raise StopAsyncIteration
+        
+        if self._index < len(self._responses):
+            result = self._responses[self._index]
+            self._index += 1
+            return result
+        
+        raise StopAsyncIteration
+    
+    def _add_response(self, payload):
+        self._responses.append(payload)
+    
+    def _complete(self):
+        self._completed = True
+
+AsyncResponseGenerator
+"#, None, None)?;
+                
+                let instance = generator_code.call0()?;
+                Ok::<PyObject, PyErr>(instance.into())
+            })?;
+            
+            let generator_ref = Python::with_gil(|py| py_async_generator.clone_ref(py));
+            
+            tokio::spawn(async move {
+                while let Some(item) = response_stream.next().await {
+                    match item {
+                        Ok(payload) => {
+                            let py_payload = PyPayload::from_rust(payload);
+                            Python::with_gil(|py| {
+                                let _ = generator_ref.call_method1(py, "_add_response", (py_payload,));
+                            });
+                            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                        },
+                        Err(_) => {
+                            break;
+                        }
+                    }
+                }
+                
+                Python::with_gil(|py| {
+                    let _ = generator_ref.call_method0(py, "_complete");
+                });
+            });
+            
+            Ok(py_async_generator)
+        })
+    }
+
     fn __str__(&self) -> String {
         "RSocket Client".to_string()
     }

@@ -40,10 +40,17 @@ class Event:
 
 def sample_publisher(wait_for_requester_complete, response_count=3):
     """
-    Create a publisher that yields (Payload, is_complete) tuples.
-    Simulates the AsyncGenerator pattern from the user's example.
+    Create a publisher generator that yields Payload objects.
+    For use with request_channel_reactive_streaming.
     """
     async def generator():
+        initial_payload = (rsocket_rust.Payload.builder()
+                          .set_data_utf8('The quick brown fox')
+                          .set_metadata_utf8('channel-route')
+                          .build())
+        print(f"📤 [Publisher] Sending initial payload: 'The quick brown fox'")
+        yield initial_payload
+        
         current_response = 0
         for i in range(response_count):
             is_complete = (current_response + 1) == response_count
@@ -55,10 +62,11 @@ def sample_publisher(wait_for_requester_complete, response_count=3):
                        .build())
             
             print(f"📤 [Publisher] Sending: {message} (complete: {is_complete})")
-            yield payload, is_complete
+            yield payload
             
             if is_complete:
-                print(f"🏁 [Publisher] Reached final item (completion will be set by client)")
+                print(f"🏁 [Publisher] Reached final item, setting requester completion")
+                wait_for_requester_complete.set()
                 break
             
             current_response += 1
@@ -144,24 +152,32 @@ async def request_channel_with_events(client):
     
     subscriber = ChannelSubscriber(channel_completion_event)
     
-    print("🚀 [Client] Starting channel request with callback pattern...")
+    print("🚀 [Client] Starting reactive streaming channel request...")
     
-    publisher_payloads = []
-    async for payload_item, is_complete in publisher:
-        publisher_payloads.append(payload_item)
-        if is_complete:
-            break
+    def payload_generator():
+        """Generator that yields payloads for reactive streaming"""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            async_gen = publisher
+            while True:
+                try:
+                    payload = loop.run_until_complete(async_gen.__anext__())
+                    yield payload
+                except StopAsyncIteration:
+                    break
+        finally:
+            loop.close()
     
     try:
-        total_responses = await client.request_channel_with_callback(
-            [payload] + publisher_payloads,
+        total_responses = await client.request_channel_reactive_streaming(
+            payload_generator(),
             subscriber.on_next,
             subscriber.on_complete
         )
         
-        print(f"📊 [Client] Channel request initiated, expecting responses...")
-        print(f"🏁 [Client] Setting requester completion event after request")
-        requester_completion_event.set()
+        print(f"📊 [Client] Reactive streaming channel request initiated, expecting responses...")
         
         print("⏳ [Client] Waiting for channel completion...")
         await channel_completion_event.wait()

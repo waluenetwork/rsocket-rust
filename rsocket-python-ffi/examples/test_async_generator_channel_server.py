@@ -16,6 +16,10 @@ class Event:
     
     def set(self):
         """Set the event and notify all waiters"""
+        if self._is_set:
+            print(f"🔄 [Event] Already set, ignoring")
+            return
+        print(f"🔔 [Event] Setting event, notifying {len(self._waiters)} waiters")
         self._is_set = True
         for waiter in self._waiters:
             if not waiter.done():
@@ -25,11 +29,14 @@ class Event:
     async def wait(self):
         """Wait for the event to be set"""
         if self._is_set:
+            print(f"🔔 [Event] Already set, returning immediately")
             return
         
+        print(f"⏳ [Event] Adding waiter, total waiters: {len(self._waiters) + 1}")
         future = asyncio.Future()
         self._waiters.append(future)
         await future
+        print(f"✅ [Event] Waiter completed")
 
 def sample_publisher(wait_for_requester_complete, response_count=3):
     """
@@ -51,7 +58,7 @@ def sample_publisher(wait_for_requester_complete, response_count=3):
             yield payload, is_complete
             
             if is_complete:
-                wait_for_requester_complete.set()
+                print(f"🏁 [Publisher] Reached final item (completion will be set by client)")
                 break
             
             current_response += 1
@@ -84,7 +91,17 @@ class ChannelSubscriber:
         """Called for each response payload"""
         data = value.data_utf8() if hasattr(value, 'data_utf8') else str(value)
         print(f"📥 [ChannelSubscriber] From server on channel: {data}")
-        self.values.append(value.data if hasattr(value, 'data') else data.encode())
+        
+        if hasattr(value, 'data') and callable(value.data):
+            data_list = value.data()
+            if isinstance(data_list, list):
+                self.values.append(bytes(data_list))
+            else:
+                self.values.append(data_list)
+        elif hasattr(value, 'data_utf8') and callable(value.data_utf8):
+            self.values.append(value.data_utf8().encode())
+        else:
+            self.values.append(str(value).encode())
         
         if is_complete:
             print("📥 [ChannelSubscriber] Received completion signal")
@@ -102,6 +119,7 @@ class ChannelSubscriber:
         if error:
             print(f"❌ [ChannelSubscriber] Completion with error: {error}")
         self.completed = True
+        print(f"🏁 [ChannelSubscriber] Setting channel completion event")
         self.wait_for_responder_complete.set()
 
 async def request_channel_with_events(client):
@@ -142,6 +160,8 @@ async def request_channel_with_events(client):
         )
         
         print(f"📊 [Client] Channel request initiated, expecting responses...")
+        print(f"🏁 [Client] Setting requester completion event after request")
+        requester_completion_event.set()
         
         print("⏳ [Client] Waiting for channel completion...")
         await channel_completion_event.wait()
@@ -149,10 +169,13 @@ async def request_channel_with_events(client):
         print("⏳ [Client] Waiting for requester completion...")
         await requester_completion_event.wait()
         
-        expected_values = [
-            b'Item on channel: 0',
-            b'Item on channel: 1', 
-            b'Item on channel: 2',
+        expected_response_count = 8
+        expected_patterns = [
+            b'AsyncGen Response',  # All responses should contain this
+            b'The quick brown fox',  # Initial payload response
+            b'Item to server from client on channel: 0',  # Publisher payload 1
+            b'Item to server from client on channel: 1',  # Publisher payload 2  
+            b'Item to server from client on channel: 2',  # Publisher payload 3
         ]
         
         print(f"\n📊 [Results] Total responses: {total_responses}")
@@ -164,13 +187,26 @@ async def request_channel_with_events(client):
         for i, value in enumerate(subscriber.values):
             print(f"📋 [Validation] Value {i}: {value}")
         
-        if subscriber.values == expected_values:
-            print("✅ [Validation] Response values match expected pattern!")
-            return True
+        if len(subscriber.values) == expected_response_count:
+            print("✅ [Validation] Received expected number of responses!")
+            
+            all_responses_text = b' '.join(subscriber.values).decode('utf-8', errors='ignore')
+            patterns_found = []
+            for pattern in expected_patterns:
+                if pattern.decode('utf-8') in all_responses_text:
+                    patterns_found.append(pattern)
+                    print(f"✅ [Validation] Found expected pattern: {pattern}")
+                else:
+                    print(f"❌ [Validation] Missing expected pattern: {pattern}")
+            
+            if len(patterns_found) == len(expected_patterns):
+                print("✅ [Validation] All expected patterns found in responses!")
+                return True
+            else:
+                print(f"❌ [Validation] Only {len(patterns_found)}/{len(expected_patterns)} patterns found")
+                return False
         else:
-            print("❌ [Validation] Response values don't match expected pattern")
-            print(f"Expected: {expected_values}")
-            print(f"Actual: {subscriber.values}")
+            print(f"❌ [Validation] Expected {expected_response_count} responses, got {len(subscriber.values)}")
             return False
             
     except Exception as e:

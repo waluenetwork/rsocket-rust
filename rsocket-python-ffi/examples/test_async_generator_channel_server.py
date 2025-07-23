@@ -96,9 +96,11 @@ class ChannelSubscriber:
         self.error_occurred = True
         self.wait_for_responder_complete.set()
     
-    def on_complete(self):
+    def on_complete(self, total_responses, success, error):
         """Called when the stream completes"""
-        print("✅ [ChannelSubscriber] Completed from server on channel")
+        print(f"✅ [ChannelSubscriber] Completed from server on channel (total: {total_responses}, success: {success})")
+        if error:
+            print(f"❌ [ChannelSubscriber] Completion with error: {error}")
         self.completed = True
         self.wait_for_responder_complete.set()
 
